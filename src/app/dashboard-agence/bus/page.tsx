@@ -749,7 +749,44 @@ export default function BusPage() {
                     <span className="ml-2 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200">★ VIP</span>
                   )}
 
-                  <div className="space-y-4 mt-6">
+                  {/* Actions — en haut */}
+                  <div className="flex flex-col gap-3 mt-5">
+                    <button onClick={() => { setEditingBus(selectedBus); setShowFormModal(true) }}
+                      className="w-full py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
+                      <Edit3 size={14} />Modifier les informations
+                    </button>
+
+                    {selectedBus.status === 'maintenance' || selectedBus.status === 'hors_service' ? (
+                      <button onClick={() => changeStatus(selectedBus.id, 'disponible')}
+                        className="w-full py-2.5 text-sm font-semibold text-green-600 border border-green-200 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2">
+                        <RotateCcw size={14} />Remettre en service
+                      </button>
+                    ) : selectedBus.status === 'en_route' ? (
+                      <button disabled
+                        className="w-full py-2.5 text-sm font-semibold text-blue-400 border border-blue-100 rounded-xl bg-blue-50/50 cursor-not-allowed flex items-center justify-center gap-2 opacity-60">
+                        <MapPin size={14} />Bus actuellement en route
+                      </button>
+                    ) : (
+                      <button onClick={() => changeStatus(selectedBus.id, 'maintenance')}
+                        className="w-full py-2.5 text-sm font-semibold text-orange-500 border border-orange-200 rounded-xl hover:bg-orange-50 transition flex items-center justify-center gap-2">
+                        <Wrench size={14} />Mettre en maintenance
+                      </button>
+                    )}
+
+                    <button onClick={() => { setSeatViewBus(selectedBus); setShowSeatView(true) }}
+                      className="w-full py-2.5 text-sm font-semibold border rounded-xl transition flex items-center justify-center gap-2"
+                      style={{ color: '#7c3aed', borderColor: '#e9d5ff' }}>
+                      <Eye size={14} />Visualiser l&apos;intérieur
+                    </button>
+
+                    <button onClick={() => window.location.href = `/dashboard-agence/bus/${selectedBus.id}/historique`}
+                      className="w-full py-2.5 text-sm font-semibold border rounded-xl transition flex items-center justify-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+                      <MapPin size={14} />Historique des trajets
+                    </button>
+                  </div>
+
+                  {/* Informations — en bas */}
+                  <div className="space-y-4 mt-6 pt-4 border-t border-gray-100">
                     {[
                       ['Places', String(selectedBus.seats)],
                       ['Kilométrage', formatMileage(selectedBus.mileage)],
@@ -786,31 +823,8 @@ export default function BusPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-gray-100">
-                    <button onClick={() => { setEditingBus(selectedBus); setShowFormModal(true) }}
-                      className="w-full py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
-                      <Edit3 size={14} />Modifier les informations
-                    </button>
-
-                    {selectedBus.status === 'maintenance' || selectedBus.status === 'hors_service' ? (
-                      <button onClick={() => changeStatus(selectedBus.id, 'disponible')}
-                        className="w-full py-2.5 text-sm font-semibold text-green-600 border border-green-200 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2">
-                        <RotateCcw size={14} />Remettre en service
-                      </button>
-                    ) : (
-                      <button onClick={() => changeStatus(selectedBus.id, 'maintenance')}
-                        className="w-full py-2.5 text-sm font-semibold text-orange-500 border border-orange-200 rounded-xl hover:bg-orange-50 transition flex items-center justify-center gap-2">
-                        <Wrench size={14} />Mettre en maintenance
-                      </button>
-                    )}
-
-                    <button onClick={() => { setSeatViewBus(selectedBus); setShowSeatView(true) }}
-                      className="w-full py-2.5 text-sm font-semibold border rounded-xl transition flex items-center justify-center gap-2"
-                      style={{ color: '#7c3aed', borderColor: '#e9d5ff' }}>
-                      <Eye size={14} />Visualiser l&apos;intérieur
-                    </button>
-
+                  {/* Supprimer */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
                     <button onClick={() => deleteBus(selectedBus.id)}
                       className="w-full py-2.5 text-sm font-medium text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition flex items-center justify-center gap-2">
                       <Trash2 size={14} />Supprimer

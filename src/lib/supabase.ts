@@ -10,7 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export type UserRole = 'superadmin' | 'admin'
 export type AgencyStatus = 'operationnel' | 'inactive' | 'suspendu' | 'en_attente' | 'configuration'
 export type ProfileStatus = 'actif' | 'suspendu' | 'en_attente'
-export type AdminRole = 'proprietaire' | 'manager' | 'operateur'
+export type AdminRole = 'proprietaire' | 'manager' | 'operateur' | 'visiteur'
 export type ReversementStatus = 'paye' | 'en_attente' | 'bloque'
 
 export interface Profile {
@@ -110,3 +110,85 @@ export interface Invitation {
   created_at: string
   agencies?: Agency
 }
+
+// ============================================================
+// Routes (lignes) et Scheduled Trips (trajets planifiés)
+// ============================================================
+
+export interface RouteStop {
+  city: string
+  location?: string
+}
+
+export interface RouteItem {
+  id: string
+  agency_id: string
+  departure_city: string
+  departure_location: string | null
+  arrival_city: string
+  arrival_location: string | null
+  stops: RouteStop[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type ScheduledTripStatus = 'actif' | 'inactif' | 'termine' | 'annule'
+
+export interface ScheduledTrip {
+  id: string
+  agency_id: string
+  route_id: string
+  bus_id: string
+  departure_datetime: string
+  arrival_datetime: string
+  driver_name: string | null
+  base_price: number
+  yield_enabled: boolean
+  total_seats: number
+  available_seats_count: number
+  available_seat_numbers: number[]
+  status: ScheduledTripStatus
+  created_at: string
+  updated_at: string
+  // Relations jointes
+  routes?: RouteItem
+  buses?: BusItem
+}
+
+export type SeatStatus = 'disponible' | 'reserve' | 'confirme' | 'annule'
+
+export interface SeatReservation {
+  id: string
+  scheduled_trip_id: string
+  seat_number: number
+  status: SeatStatus
+  passenger_name: string | null
+  passenger_phone: string | null
+  reserved_at: string | null
+  created_at: string
+}
+
+// Liste des villes principales du Cameroun
+export const CAMEROON_CITIES = [
+  'Douala',
+  'Yaoundé',
+  'Bafoussam',
+  'Bamenda',
+  'Garoua',
+  'Maroua',
+  'Ngaoundéré',
+  'Bertoua',
+  'Ebolowa',
+  'Kribi',
+  'Limbé',
+  'Buéa',
+  'Nkongsamba',
+  'Kumba',
+  'Dschang',
+  'Foumban',
+  'Edéa',
+  'Mbalmayo',
+  'Sangmélima',
+  'Tiko',
+]

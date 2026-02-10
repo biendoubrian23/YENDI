@@ -15,18 +15,36 @@ import {
   Search,
   ChevronUp,
 } from 'lucide-react'
-import { supabase, type Profile } from '@/lib/supabase'
+import { supabase, type Profile, type AdminRole } from '@/lib/supabase'
 
-const navSections = [
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  badge?: number
+  // Rôles qui peuvent voir cet item (vide = tous)
+  roles?: AdminRole[]
+  // Si true, le visiteur ne peut que consulter (pas modifier)
+  readOnly?: boolean
+}
+
+type NavSection = {
+  label: string
+  items: NavItem[]
+}
+
+const allNavSections: NavSection[] = [
   {
     label: 'AGENCE',
     items: [
-      { href: '/dashboard-agence', label: 'Dashboard', icon: LayoutDashboard },
+      // Dashboard : proprietaire + manager uniquement
+      { href: '/dashboard-agence', label: 'Dashboard', icon: LayoutDashboard, roles: ['proprietaire', 'manager'] },
     ],
   },
   {
     label: 'OPÉRATIONS',
     items: [
+      // Tous les rôles voient ces pages (visiteur en lecture seule)
       { href: '/dashboard-agence/bus', label: 'Flotte & Bus', icon: Bus },
       { href: '/dashboard-agence/trajets', label: 'Trajets & Lignes', icon: Route },
       { href: '/dashboard-agence/reservations', label: 'Réservations', icon: CalendarCheck, badge: 12 },
@@ -35,11 +53,26 @@ const navSections = [
   {
     label: 'ADMINISTRATION',
     items: [
-      { href: '/dashboard-agence/equipe', label: 'Équipe & Droits', icon: Users },
-      { href: '/dashboard-agence/parametres', label: 'Paramètres', icon: Settings },
+      // Équipe & Droits : proprietaire uniquement
+      { href: '/dashboard-agence/equipe', label: 'Équipe & Droits', icon: Users, roles: ['proprietaire'] },
+      // Paramètres : proprietaire + manager
+      { href: '/dashboard-agence/parametres', label: 'Paramètres', icon: Settings, roles: ['proprietaire', 'manager'] },
     ],
   },
 ]
+
+// Filtrer les sections de navigation selon le rôle
+function getNavForRole(role: AdminRole): NavSection[] {
+  return allNavSections
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => {
+        if (!item.roles || item.roles.length === 0) return true
+        return item.roles.includes(role)
+      }),
+    }))
+    .filter(section => section.items.length > 0)
+}
 
 export default function DashboardAgenceLayout({
   children,
@@ -51,6 +84,7 @@ export default function DashboardAgenceLayout({
   const [authenticated, setAuthenticated] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [agencyName, setAgencyName] = useState('')
+  const [agencyRole, setAgencyRole] = useState<AdminRole>('proprietaire')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -76,15 +110,25 @@ export default function DashboardAgenceLayout({
 
       setProfile(profileData)
 
-      // Récupérer le nom de l'agence
+      // Récupérer le nom de l'agence ET le rôle dans l'agence
       const { data: agencyAdmin } = await supabase
         .from('agency_admins')
-        .select('agency_id, agencies(name)')
+        .select('agency_id, role, agencies(name)')
         .eq('profile_id', session.user.id)
         .single()
 
-      if (agencyAdmin && agencyAdmin.agencies) {
-        setAgencyName((agencyAdmin.agencies as { name: string }).name)
+      if (agencyAdmin) {
+        if (agencyAdmin.agencies) {
+          const agencies = agencyAdmin.agencies as unknown as { name: string }
+          setAgencyName(agencies.name)
+        }
+        setAgencyRole(agencyAdmin.role as AdminRole)
+
+        // Mettre à jour last_login_at dans le profil
+        await supabase
+          .from('profiles')
+          .update({ last_login_at: new Date().toISOString(), status: profileData.status === 'en_attente' ? 'actif' : profileData.status })
+          .eq('id', session.user.id)
       }
 
       setAuthenticated(true)
@@ -147,9 +191,9 @@ export default function DashboardAgenceLayout({
             </span>
           </div>
 
-          {/* Navigation sections */}
+          {/* Navigation sections - filtrée selon le rôle */}
           <nav className="flex flex-col gap-6">
-            {navSections.map((section) => (
+            {getNavForRole(agencyRole).map((section) => (
               <div key={section.label}>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
                   {section.label}
@@ -203,7 +247,9 @@ export default function DashboardAgenceLayout({
               <p className="text-sm font-semibold text-gray-800 truncate">
                 {profile ? getFirstNameAndInitial(profile.full_name) : 'Chargement...'}
               </p>
-              <p className="text-[11px] text-gray-400">Admin</p>
+              <p className="text-[11px] text-gray-400">
+                {{ proprietaire: 'Admin', manager: 'Manager', operateur: 'Opérateur', visiteur: 'Visiteur' }[agencyRole] || 'Admin'}
+              </p>
             </div>
             <button
               onClick={handleLogout}
@@ -217,7 +263,7 @@ export default function DashboardAgenceLayout({
       </aside>
 
       {/* Contenu principal */}
-      <main className="flex-1 ml-[250px]">
+      <main className="flex-1 ml-[250px] overflow-x-hidden min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-8 py-4 flex items-center justify-between">
           <div />

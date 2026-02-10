@@ -38,6 +38,15 @@ body {
   border-radius: 3px;
 }
 
+/* Hide scrollbar for carousel */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Page title style */
 .page-title {
   font-size: 1.875rem;
