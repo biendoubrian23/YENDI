@@ -51,7 +51,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="w-64 min-h-screen flex flex-col justify-between py-6 px-4"
+      className="w-64 h-screen fixed left-0 top-0 flex flex-col justify-between py-6 px-4"
       style={{ background: '#f9fafb', borderRight: '1px solid #e5e7eb' }}
     >
       {/* Logo */}

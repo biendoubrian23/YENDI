@@ -116,7 +116,6 @@ body {
   transition: box-shadow 0.2s, transform 0.2s;
   display: flex;
   flex-direction: column;
-  aspect-ratio: 0.95 / 1;
 }
 
 .agency-card:hover {

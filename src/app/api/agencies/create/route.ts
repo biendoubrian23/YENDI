@@ -5,18 +5,25 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      agencyName,
-      siret,
+      name: agencyName,
+      siret_number: siret,
       website,
       address,
       city,
-      countryCode,
+      country_code: countryCode,
       color,
       plan,
-      adminFullName,
-      adminEmail,
-      adminRole,
+      admin_first_name: adminFirstName,
+      admin_last_name: adminLastName,
+      admin_email: adminEmail,
+      admin_phone: adminPhone,
+      admin_role: adminRole,
+      temp_password: tempPasswordFromForm,
     } = body
+
+    const adminFullName = adminFirstName && adminLastName 
+      ? `${adminFirstName} ${adminLastName}` 
+      : adminFirstName || adminLastName || null
 
     // Vérifier l'auth du superadmin via le header Authorization
     const authHeader = request.headers.get('Authorization')
@@ -72,8 +79,10 @@ export async function POST(request: NextRequest) {
         .insert({
           email: adminEmail,
           full_name: adminFullName,
+          phone: adminPhone || null,
           agency_id: agency.id,
           role: adminRole || 'proprietaire',
+          temp_password: tempPasswordFromForm || null,
         })
         .select()
         .single()
@@ -84,9 +93,8 @@ export async function POST(request: NextRequest) {
 
       invitation = inv
 
-      // 3. Envoyer l'email d'invitation via Supabase Auth
-      // On crée le user avec un mot de passe temporaire et on envoie un email de réinitialisation
-      const tempPassword = `Yendi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      // 3. Créer le user auth avec le mot de passe provisoire du formulaire
+      const tempPassword = tempPasswordFromForm || `Yendi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
       const { data: newUser, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
         email: adminEmail,
@@ -94,6 +102,7 @@ export async function POST(request: NextRequest) {
         email_confirm: true,
         user_metadata: {
           full_name: adminFullName,
+          phone: adminPhone || null,
           role: 'admin',
           invitation_token: inv.token,
           agency_id: agency.id,
@@ -125,16 +134,6 @@ export async function POST(request: NextRequest) {
           profile_id: newUser.user.id,
           role: adminRole || 'proprietaire',
           is_primary: true,
-        })
-
-        // Envoyer l'email de réinitialisation de mot de passe
-        // L'admin recevra un lien pour définir son propre mot de passe
-        await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
-          email: adminEmail,
-          options: {
-            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/setup-password?token=${inv.token}`,
-          },
         })
       }
 

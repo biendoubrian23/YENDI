@@ -177,7 +177,7 @@ export default function DashboardPage() {
         {loading ? (
           <div className="text-center text-gray-400 py-12">Chargement des agences...</div>
         ) : (
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-4 gap-6">
           {filteredAgencies.map((agency) => (
             <div key={agency.id} className="agency-card">
               <div className="p-5">

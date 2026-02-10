@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, RefreshCw, Shield, ChevronLeft } from 'lucide-react'
+import { Camera, RefreshCw, Shield, Check, Send, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -23,20 +23,67 @@ function generatePassword(): string {
   return result
 }
 
+function SuccessModal({ agencyName, adminEmail, onClose }: { agencyName: string; adminEmail: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
+        {/* Checkmark circle */}
+        <div className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center" style={{ background: '#ecfdf5' }}>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: '#22c55e' }}>
+            <Check size={28} className="text-white" strokeWidth={3} />
+          </div>
+        </div>
+
+        <h2 className="text-xl font-bold mb-2" style={{ color: '#1a1d29' }}>
+          Agence créée avec succès !
+        </h2>
+        <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+          L&apos;agence <strong>{agencyName}</strong> a été enregistrée.<br />
+          Un compte administrateur a été créé pour <strong>{adminEmail}</strong>.
+        </p>
+
+        <div className="bg-orange-50 rounded-xl p-4 mb-6 text-left">
+          <p className="text-xs font-semibold mb-1" style={{ color: '#f26522' }}>
+            📋 Prochaine étape
+          </p>
+          <p className="text-xs text-gray-500">
+            Transmettez le mot de passe provisoire à l&apos;administrateur.
+            Il devra le modifier lors de sa première connexion.
+          </p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-xl font-semibold text-sm text-white transition"
+          style={{ background: '#f26522' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#e05a1a')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#f26522')}
+        >
+          Voir les agences
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function NouvelleAgencePage() {
   const router = useRouter()
   const [selectedCountry, setSelectedCountry] = useState('CI')
   const [password, setPassword] = useState(generatePassword())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showSuccess, setShowSuccess] = useState(false)
   const [formData, setFormData] = useState({
     nomCommercial: '',
     siret: '',
     siteWeb: '',
     adresse: '',
     ville: '',
+    superviseurPrenom: '',
     superviseurNom: '',
     superviseurEmail: '',
+    superviseurTelephone: '',
   })
 
   const handleGenerate = () => {
@@ -69,8 +116,10 @@ export default function NouvelleAgencePage() {
           address: formData.adresse,
           city: formData.ville || selectedCountry,
           country_code: selectedCountry,
-          admin_name: formData.superviseurNom,
+          admin_first_name: formData.superviseurPrenom,
+          admin_last_name: formData.superviseurNom,
           admin_email: formData.superviseurEmail,
+          admin_phone: formData.superviseurTelephone || null,
           temp_password: password,
         }),
       })
@@ -83,7 +132,8 @@ export default function NouvelleAgencePage() {
         return
       }
 
-      router.push('/dashboard/agences')
+      // Afficher le modal de succès
+      setShowSuccess(true)
     } catch {
       setError('Erreur réseau. Réessayez.')
     }
@@ -93,6 +143,15 @@ export default function NouvelleAgencePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {/* Modal de succès */}
+      {showSuccess && (
+        <SuccessModal
+          agencyName={formData.nomCommercial}
+          adminEmail={formData.superviseurEmail}
+          onClose={() => router.push('/dashboard/agences')}
+        />
+      )}
+
       {/* Breadcrumb + Cancel */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 text-sm">
@@ -231,12 +290,23 @@ export default function NouvelleAgencePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="text"
-                    placeholder="Nom complet"
+                    placeholder="Prénom"
+                    className="form-input"
+                    value={formData.superviseurPrenom}
+                    onChange={(e) => setFormData({ ...formData, superviseurPrenom: e.target.value })}
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nom de famille"
                     className="form-input"
                     value={formData.superviseurNom}
                     onChange={(e) => setFormData({ ...formData, superviseurNom: e.target.value })}
                     required
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <input
                     type="email"
                     placeholder="Email professionnel"
@@ -244,6 +314,13 @@ export default function NouvelleAgencePage() {
                     value={formData.superviseurEmail}
                     onChange={(e) => setFormData({ ...formData, superviseurEmail: e.target.value })}
                     required
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Téléphone (ex: +225 07 XX XX XX)"
+                    className="form-input"
+                    value={formData.superviseurTelephone}
+                    onChange={(e) => setFormData({ ...formData, superviseurTelephone: e.target.value })}
                   />
                 </div>
 
@@ -273,9 +350,25 @@ export default function NouvelleAgencePage() {
                       onClick={() => navigator.clipboard.writeText(password)}
                       className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition"
                     >
-                      <RefreshCw size={14} />
+                      <Copy size={14} />
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const subject = encodeURIComponent('Vos identifiants YENDI')
+                      const body = encodeURIComponent(
+                        `Bonjour,\n\nVotre compte administrateur YENDI a été créé.\n\nVoici vos identifiants de connexion :\n\n📧 Identifiant : ${formData.superviseurEmail}\n🔑 Mot de passe temporaire : ${password}\n\n🔗 Connectez-vous ici : ${window.location.origin}/login\n\n⚠️ Vous devrez changer votre mot de passe lors de votre première connexion.\n\nCordialement,\nL'équipe YENDI`
+                      )
+                      window.location.href = `mailto:${formData.superviseurEmail}?subject=${subject}&body=${body}`
+                    }}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition"
+                    style={{ backgroundColor: '#f26522' }}
+                    disabled={!password || !formData.superviseurEmail}
+                  >
+                    <Send size={14} />
+                    Envoyer les identifiants par email
+                  </button>
                   <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
                     <span>ℹ️</span> L&apos;administrateur devra changer ce mot de passe à la première connexion.
                   </p>
@@ -348,7 +441,7 @@ export default function NouvelleAgencePage() {
                 <div>
                   <p className="text-sm font-bold" style={{ color: '#1a1d29' }}>Sécurité</p>
                   <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                    Un email d&apos;invitation sécurisé sera automatiquement envoyé à l&apos;administrateur avec ses accès.
+                    Le mot de passe provisoire devra être transmis manuellement à l&apos;administrateur. Il devra le modifier lors de sa première connexion.
                   </p>
                 </div>
               </div>

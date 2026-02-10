@@ -1,7 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  MapPin,
+  Users,
+  TrendingUp,
+  Calendar,
+  Globe,
+  Building2,
+  CreditCard,
+} from 'lucide-react'
 import Link from 'next/link'
 import { supabase, type Agency } from '@/lib/supabase'
 import { formatFCFA } from '@/lib/mock-data'
@@ -10,9 +24,11 @@ type TabType = 'Toutes' | 'Actives' | 'En Attente' | 'Suspendues'
 
 interface AgencyRow extends Agency {
   admin?: string
+  adminEmail?: string
   initials?: string
   revenue: number
   debt?: number
+  adminsCount: number
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -43,19 +59,144 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+function AgencyDetailModal({ agency, onClose }: { agency: AgencyRow; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        {/* Header coloré */}
+        <div className="px-6 pt-6 pb-5 flex items-start justify-between" style={{ background: `${agency.color || '#3b82f6'}10` }}>
+          <div className="flex items-center gap-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg"
+              style={{ background: agency.color || '#3b82f6' }}
+            >
+              {agency.name.charAt(0)}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: '#1a1d29' }}>{agency.name}</h2>
+              <p className="text-sm text-gray-400 flex items-center gap-1 mt-0.5">
+                <MapPin size={13} /> {agency.city}, {agency.country_code}
+              </p>
+              <div className="mt-2">
+                <StatusBadge status={agency.status} />
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-white/60 transition"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <TrendingUp size={16} className="mx-auto mb-1 text-gray-400" />
+              <p className="text-sm font-bold" style={{ color: '#1a1d29' }}>{formatFCFA(agency.revenue)}</p>
+              <p className="text-[10px] text-gray-400 uppercase font-medium">Revenus</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <Users size={16} className="mx-auto mb-1 text-gray-400" />
+              <p className="text-sm font-bold" style={{ color: '#1a1d29' }}>{agency.adminsCount}</p>
+              <p className="text-[10px] text-gray-400 uppercase font-medium">Admin(s)</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <CreditCard size={16} className="mx-auto mb-1 text-gray-400" />
+              <p className="text-sm font-bold" style={{ color: '#1a1d29' }}>{agency.commission_rate}%</p>
+              <p className="text-[10px] text-gray-400 uppercase font-medium">Commission</p>
+            </div>
+          </div>
+
+          {/* Détails */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+              <Building2 size={16} className="text-gray-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-[10px] text-gray-400 uppercase font-medium">Adresse</p>
+                <p className="text-sm font-medium" style={{ color: '#1a1d29' }}>{agency.address || 'Non renseignée'}</p>
+              </div>
+            </div>
+
+            {agency.siret_number && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium">SIRET / Registre</p>
+                  <p className="text-sm font-medium" style={{ color: '#1a1d29' }}>{agency.siret_number}</p>
+                </div>
+              </div>
+            )}
+
+            {agency.website && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <Globe size={16} className="text-gray-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium">Site web</p>
+                  <p className="text-sm font-medium" style={{ color: '#3b82f6' }}>{agency.website}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+              <Users size={16} className="text-gray-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-[10px] text-gray-400 uppercase font-medium">Admin principal</p>
+                <p className="text-sm font-medium" style={{ color: '#1a1d29' }}>
+                  {agency.admin || 'En attente'}
+                  {agency.adminEmail && <span className="text-gray-400 ml-2 text-xs">({agency.adminEmail})</span>}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+              <Calendar size={16} className="text-gray-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-[10px] text-gray-400 uppercase font-medium">Date d&apos;inscription</p>
+                <p className="text-sm font-medium" style={{ color: '#1a1d29' }}>
+                  {new Date(agency.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AgencesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('Toutes')
   const [currentPage, setCurrentPage] = useState(1)
   const [agencies, setAgencies] = useState<AgencyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ total: 0, active: 0, blocked: 0, trips: 0 })
+  const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(null)
 
   useEffect(() => {
     const fetchAgencies = async () => {
       try {
         const { data: agenciesData } = await supabase
           .from('agencies')
-          .select('*, agency_admins(profile_id, is_primary, profiles(full_name))')
+          .select('*, agency_admins(profile_id, is_primary, profiles(full_name, email))')
           .order('created_at', { ascending: false })
 
         const { data: finData } = await supabase
@@ -68,14 +209,16 @@ export default function AgencesPage() {
         })
 
         const mapped: AgencyRow[] = (agenciesData || []).map((a: Record<string, unknown>) => {
-          const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string } | null }>) || []
+          const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string; email: string } | null }>) || []
           const primary = admins.find((ad) => ad.is_primary)
           const rev = revenueMap[a.id as string] || 0
           return {
             ...a,
             admin: primary?.profiles?.full_name || 'En attente',
+            adminEmail: primary?.profiles?.email || '',
             initials: (primary?.profiles?.full_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
             revenue: rev,
+            adminsCount: admins.length,
             debt: (a.status === 'suspendu' && rev < 0) ? rev : undefined,
           } as AgencyRow
         })
@@ -85,11 +228,11 @@ export default function AgencesPage() {
         const total = mapped.length
         const active = mapped.filter((a) => a.status === 'operationnel').length
         const blocked = mapped.filter((a) => a.status === 'en_attente' || a.status === 'inactive').length
-        
+
         const { data: tripsData } = await supabase
           .from('trips')
           .select('*', { count: 'exact', head: true })
-        
+
         setStats({ total, active, blocked, trips: (tripsData as unknown as number) || 0 })
       } catch (err) {
         console.error('Erreur chargement agences:', err)
@@ -111,6 +254,11 @@ export default function AgencesPage() {
 
   return (
     <div>
+      {/* Modal Détail Agence */}
+      {selectedAgency && (
+        <AgencyDetailModal agency={selectedAgency} onClose={() => setSelectedAgency(null)} />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -215,93 +363,109 @@ export default function AgencesPage() {
         </div>
       </div>
 
-      {/* Agency Cards Grid */}
+      {/* Agency Table List */}
       {loading ? (
         <div className="text-center text-gray-400 py-12 mb-8">Chargement des agences...</div>
       ) : (
-      <div className="grid grid-cols-3 gap-8 mb-8">
-        {filteredAgencies.map((agency) => (
-          <div key={agency.id} className="agency-card">
-            <div className="p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg overflow-hidden flex-shrink-0"
-                  style={{ background: agency.color || '#ddd' }}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-8">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Agence</th>
+                <th>Localisation</th>
+                <th>Admin Principal</th>
+                <th>Revenus</th>
+                <th>Plan</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAgencies.map((agency) => (
+                <tr
+                  key={agency.id}
+                  className="cursor-pointer hover:bg-gray-50 transition"
+                  onClick={() => setSelectedAgency(agency)}
                 >
-                  {agency.initials || agency.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm" style={{ color: '#1a1d29' }}>
-                    {agency.name}
-                  </h3>
-                  <p className="text-xs text-gray-400 flex items-center gap-1">
-                    <span>📍</span> {agency.city}, {agency.country_code}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase font-medium">Admin</p>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                        style={{ background: agency.color || '#3b82f6' }}
+                      >
+                        {agency.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm" style={{ color: '#1a1d29' }}>
+                          {agency.name}
+                        </p>
+                        {agency.siret_number && (
+                          <p className="text-xs text-gray-400">{agency.siret_number}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <MapPin size={13} className="text-gray-400" />
+                      {agency.city}, {agency.country_code}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                        style={{ background: agency.color || '#9ca3af' }}
+                      >
+                        {agency.initials || '?'}
+                      </div>
+                      <span className="text-sm font-medium">{agency.admin}</span>
+                    </div>
+                  </td>
+                  <td>
                     <span
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
-                      style={{ background: agency.color || '#9ca3af' }}
+                      className="text-sm font-semibold"
+                      style={{ color: agency.debt ? '#ef4444' : '#1a1d29' }}
                     >
-                      {agency.initials || '?'}
+                      {formatFCFA(agency.revenue)}
                     </span>
-                    {agency.admin}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-400 uppercase font-medium">
-                    {agency.debt ? 'Dette' : 'Revenus (Mensuel)'}
-                  </p>
-                  <p
-                    className="text-sm font-bold"
-                    style={{ color: agency.debt ? '#ef4444' : '#1a1d29' }}
-                  >
-                    {formatFCFA(agency.revenue)}
-                  </p>
-                </div>
-              </div>
+                  </td>
+                  <td>
+                    <span
+                      className="text-xs font-medium px-2.5 py-1 rounded-md capitalize"
+                      style={{
+                        background: agency.plan === 'premium' ? '#fef3c7' : '#f3f4f6',
+                        color: agency.plan === 'premium' ? '#d97706' : '#6b7280',
+                      }}
+                    >
+                      {agency.plan}
+                    </span>
+                  </td>
+                  <td>
+                    <StatusBadge status={agency.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-              <div className="flex items-center justify-between">
-                <StatusBadge status={agency.status} />
-                {agency.debt ? (
-                  <span className="text-xs font-medium text-red-500 cursor-pointer hover:underline">
-                    Gérer le litige →
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-800">
-                    Voir Détails →
-                  </span>
-                )}
-              </div>
+          {filteredAgencies.length === 0 && (
+            <div className="text-center text-gray-400 py-12">
+              Aucune agence dans cette catégorie.
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      )}
 
-        {/* Add Agency Card */}
+      {/* Add agency link */}
+      <div className="flex justify-center mb-6">
         <Link
           href="/dashboard/agences/nouvelle"
-          className="agency-card flex items-center justify-center p-10 border-2 border-dashed border-gray-200 hover:border-gray-300 cursor-pointer"
-          style={{ background: 'transparent', minHeight: '220px' }}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition text-sm font-medium text-gray-500 hover:text-orange-600"
         >
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3">
-              <Plus size={20} className="text-gray-400" />
-            </div>
-            <p className="font-bold text-sm" style={{ color: '#1a1d29' }}>
-              Ajouter une Agence
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Intégrer un nouveau partenaire de transport au réseau YENDI.
-            </p>
-          </div>
+          <Plus size={16} />
+          Ajouter une nouvelle agence
         </Link>
       </div>
-      )}
 
       {/* Pagination */}
       <div className="flex justify-center">
