@@ -230,8 +230,7 @@ export default function LoginPage() {
       if (profile.role === 'superadmin') {
         router.push('/dashboard')
       } else if (profile.role === 'admin') {
-        // Dashboard admin pas encore codé → modal succès
-        setShowSuccess(true)
+        router.push('/dashboard-agence')
       } else {
         setError('Rôle non reconnu')
         await supabase.auth.signOut()

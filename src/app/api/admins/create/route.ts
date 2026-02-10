@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       email,
       phone,
       agencyId,
-      role = 'manager',
+      role = 'proprietaire',
     } = body
 
     // Validation

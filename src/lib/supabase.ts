@@ -67,6 +67,37 @@ export interface FinancialRecord {
   agencies?: Agency
 }
 
+export type BusStatus = 'disponible' | 'en_route' | 'maintenance' | 'hors_service'
+
+export interface SeatLayout {
+  left: number       // sièges côté gauche par rangée
+  right: number      // sièges côté droit par rangée
+  back_row: number   // sièges dernière rangée (0 = pas de rangée arrière)
+  rows: number       // nombre de rangées normales
+}
+
+export interface BusItem {
+  id: string
+  agency_id: string
+  brand: string
+  model: string
+  number: string
+  plate: string
+  seats: number
+  seat_layout: SeatLayout
+  status: BusStatus
+  fuel_level: number
+  mileage: number
+  features: string[]
+  current_driver: string | null
+  current_line: string | null
+  last_revision: string | null
+  next_revision: string | null
+  is_vip: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Invitation {
   id: string
   email: string

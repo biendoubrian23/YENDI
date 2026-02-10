@@ -110,12 +110,23 @@ export async function POST(request: NextRequest) {
       })
 
       if (signUpError) {
-        // Si l'email existe déjà dans auth, on lie juste l'admin à l'agence
+        // Si l'email existe déjà dans auth, on lie l'admin à l'agence ET on met à jour le mot de passe
         if (signUpError.message.includes('already')) {
           const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
           const existingUser = existingUsers?.users?.find(u => u.email === adminEmail)
 
           if (existingUser) {
+            // Mettre à jour le mot de passe pour correspondre au nouveau mot de passe provisoire
+            await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+              password: tempPassword,
+            })
+
+            // Remettre le statut en_attente pour forcer le changement de mot de passe
+            await supabaseAdmin
+              .from('profiles')
+              .update({ status: 'en_attente' })
+              .eq('id', existingUser.id)
+
             // Lier à l'agence
             await supabaseAdmin.from('agency_admins').insert({
               agency_id: agency.id,

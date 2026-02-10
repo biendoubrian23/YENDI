@@ -99,7 +99,7 @@ function AssignAdminModal({
     email: '',
     phone: '',
     agencyId: '',
-    role: 'manager',
+    role: 'proprietaire',
   })
 
   useEffect(() => {
@@ -226,21 +226,6 @@ function AssignAdminModal({
                   {agency.name} - {agency.city}
                 </option>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold mb-2" style={{ color: '#1a1d29' }}>
-              Rôle <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="form-input w-full"
-            >
-              <option value="manager">Manager</option>
-              <option value="proprietaire">Propriétaire</option>
-              <option value="operateur">Opérateur</option>
             </select>
           </div>
 
@@ -501,21 +486,6 @@ function EditAdminModal({
                   {agency.name} - {agency.city}
                 </option>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold mb-2" style={{ color: '#1a1d29' }}>
-              Rôle <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="form-input w-full"
-            >
-              <option value="manager">Manager</option>
-              <option value="proprietaire">Propriétaire</option>
-              <option value="operateur">Opérateur</option>
             </select>
           </div>
 
