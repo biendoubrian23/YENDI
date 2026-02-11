@@ -45,31 +45,45 @@ export async function GET(request: NextRequest) {
     const now = new Date().toISOString()
     const { data: activeTrips } = await supabaseAdmin
       .from('scheduled_trips')
-      .select('bus_id, departure_datetime, arrival_datetime, status')
+      .select('bus_id, departure_datetime, arrival_datetime, status, driver_name, route_id, routes:route_id(departure_city, arrival_city)')
       .eq('agency_id', adminLink.agency_id)
       .in('status', ['actif'])
       .lte('departure_datetime', now)
       .gte('arrival_datetime', now)
 
-    // Map des bus_id qui sont actuellement "en route"
-    const busesEnRoute = new Set<string>()
+    // Map des bus_id vers leur trajet en cours (pour progression)
+    const busTripMap = new Map<string, {
+      departure_datetime: string
+      arrival_datetime: string
+      driver_name: string | null
+      departure_city: string
+      arrival_city: string
+    }>()
     if (activeTrips) {
       for (const trip of activeTrips) {
-        busesEnRoute.add(trip.bus_id)
+        const route = trip.routes as unknown as { departure_city: string; arrival_city: string } | null
+        busTripMap.set(trip.bus_id, {
+          departure_datetime: trip.departure_datetime,
+          arrival_datetime: trip.arrival_datetime,
+          driver_name: trip.driver_name,
+          departure_city: route?.departure_city || '',
+          arrival_city: route?.arrival_city || '',
+        })
       }
     }
 
-    // Mettre à jour le statut dynamiquement
+    // Mettre à jour le statut dynamiquement + ajouter info trajet
     const enrichedBuses = (buses || []).map((bus: Record<string, unknown>) => {
       // Si le bus est en maintenance ou hors service, garder son statut manuel
       if (bus.status === 'maintenance' || bus.status === 'hors_service') {
-        return bus
+        return { ...bus, active_trip: null }
       }
       // Sinon, calculer dynamiquement
-      if (busesEnRoute.has(bus.id as string)) {
-        return { ...bus, status: 'en_route' }
+      const activeTrip = busTripMap.get(bus.id as string)
+      if (activeTrip) {
+        return { ...bus, status: 'en_route', active_trip: activeTrip }
       }
-      return { ...bus, status: 'disponible' }
+      return { ...bus, status: 'disponible', active_trip: null }
     })
 
     return NextResponse.json(enrichedBuses)

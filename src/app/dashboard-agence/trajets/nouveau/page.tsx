@@ -23,18 +23,19 @@ const mockDrivers = [
 ]
 
 // Composant TimePicker avec selects (pas de scroll infini)
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TimePicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const [h, m] = value.split(':')
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
   const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'))
 
   return (
-    <div className="flex items-center gap-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-white">
+    <div className={`flex items-center gap-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl ${disabled ? 'bg-gray-50' : 'bg-white'}`}>
       <select
         value={h || '06'}
         onChange={(e) => onChange(`${e.target.value}:${m || '00'}`)}
+        disabled={disabled}
         title="Heure"
-        className="flex-1 text-sm font-medium outline-none bg-transparent text-center appearance-none cursor-pointer"
+        className="flex-1 text-sm font-medium outline-none bg-transparent text-center appearance-none cursor-pointer disabled:text-gray-500 disabled:cursor-not-allowed"
       >
         {hours.map((hr) => (
           <option key={hr} value={hr}>{hr}h</option>
@@ -44,8 +45,9 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
       <select
         value={m || '00'}
         onChange={(e) => onChange(`${h || '06'}:${e.target.value}`)}
+        disabled={disabled}
         title="Minutes"
-        className="flex-1 text-sm font-medium outline-none bg-transparent text-center appearance-none cursor-pointer"
+        className="flex-1 text-sm font-medium outline-none bg-transparent text-center appearance-none cursor-pointer disabled:text-gray-500 disabled:cursor-not-allowed"
       >
         {minutes.map((min) => (
           <option key={min} value={min}>{min}</option>
@@ -60,6 +62,7 @@ export default function NouveauTrajetPage() {
   const searchParams = useSearchParams()
   const editTripId = searchParams.get('edit')
   const isEditMode = !!editTripId
+  const isReadOnly = searchParams.get('readonly') === 'true'
 
   // Form state
   const [departureCity, setDepartureCity] = useState('')
@@ -251,6 +254,9 @@ export default function NouveauTrajetPage() {
   }
 
   const handlePublish = async () => {
+    // En mode readonly (trajet en cours), on ne peut rien faire
+    if (isReadOnly) return
+
     setError('')
 
     // Validations
@@ -384,7 +390,7 @@ export default function NouveauTrajetPage() {
             </Link>
           </div>
           <h1 className="text-2xl font-bold" style={{ color: '#1a1d29' }}>
-            {isEditMode ? 'Modifier le Trajet' : 'Planification de Voyage'}
+            {isReadOnly ? 'Détails du Trajet (en cours)' : isEditMode ? 'Modifier le Trajet' : 'Planification de Voyage'}
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -392,17 +398,24 @@ export default function NouveauTrajetPage() {
             href="/dashboard-agence/trajets"
             className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition"
           >
-            Annuler
+            {isReadOnly ? 'Retour' : 'Annuler'}
           </Link>
-          <button
-            onClick={handlePublish}
-            disabled={publishing}
-            className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-            style={{ background: '#1a1d29' }}
-          >
-            {publishing && <Loader2 size={14} className="animate-spin" />}
-            {isEditMode ? 'Enregistrer' : 'Publier le trajet'}
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={handlePublish}
+              disabled={publishing || isReadOnly}
+              className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              style={{ background: '#1a1d29' }}
+            >
+              {publishing && <Loader2 size={14} className="animate-spin" />}
+              {isEditMode ? 'Enregistrer' : 'Publier le trajet'}
+            </button>
+          )}
+          {isReadOnly && (
+            <span className="px-5 py-2.5 text-sm font-semibold text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed">
+              🔒 Trajet en cours — lecture seule
+            </span>
+          )}
         </div>
       </div>
 
@@ -433,7 +446,8 @@ export default function NouveauTrajetPage() {
                 <select
                   value={departureCity}
                   onChange={(e) => setDepartureCity(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition"
+                  disabled={isReadOnly}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 >
                   <option value="">Choisir une ville...</option>
                   {CAMEROON_CITIES.map((city) => (
@@ -450,7 +464,8 @@ export default function NouveauTrajetPage() {
                 <select
                   value={arrivalCity}
                   onChange={(e) => setArrivalCity(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition"
+                  disabled={isReadOnly}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 >
                   <option value="">Choisir une ville...</option>
                   {CAMEROON_CITIES.filter(c => c !== departureCity).map((city) => (
@@ -470,8 +485,9 @@ export default function NouveauTrajetPage() {
                   type="text"
                   value={departureLocation}
                   onChange={(e) => setDepartureLocation(e.target.value)}
+                  disabled={isReadOnly}
                   placeholder="Ex: Gare routière de Bonabéri"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -482,8 +498,9 @@ export default function NouveauTrajetPage() {
                   type="text"
                   value={arrivalLocation}
                   onChange={(e) => setArrivalLocation(e.target.value)}
+                  disabled={isReadOnly}
                   placeholder="Ex: Gare routière de Mvan"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -496,7 +513,8 @@ export default function NouveauTrajetPage() {
                 </label>
                 <button
                   onClick={addStop}
-                  className="text-xs font-semibold flex items-center gap-1 transition hover:opacity-80"
+                  disabled={isReadOnly}
+                  className="text-xs font-semibold flex items-center gap-1 transition hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ color: '#7c3aed' }}
                 >
                   <Plus size={14} />
@@ -517,7 +535,8 @@ export default function NouveauTrajetPage() {
                     <select
                       value={stop.city}
                       onChange={(e) => updateStop(i, 'city', e.target.value)}
-                      className="flex-1 min-w-[140px] px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none"
+                      disabled={isReadOnly}
+                      className="flex-1 min-w-[140px] px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       <option value="">Choisir une ville...</option>
                       {CAMEROON_CITIES
@@ -530,15 +549,18 @@ export default function NouveauTrajetPage() {
                       type="text"
                       value={stop.location || ''}
                       onChange={(e) => updateStop(i, 'location', e.target.value)}
+                      disabled={isReadOnly}
                       placeholder="Lieu précis (optionnel)"
-                      className="flex-1 min-w-[140px] px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none"
+                      className="flex-1 min-w-[140px] px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     />
+                    {!isReadOnly && (
                     <button
                       onClick={() => removeStop(i)}
                       className="text-gray-400 hover:text-red-500 transition shrink-0"
                     >
                       <X size={16} />
                     </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -561,15 +583,16 @@ export default function NouveauTrajetPage() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
+                  disabled={isReadOnly}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
                   Heure de départ
                 </label>
-                <TimePicker value={departureTime} onChange={setDepartureTime} />
+                <TimePicker value={departureTime} onChange={setDepartureTime} disabled={isReadOnly} />
               </div>
             </div>
 
@@ -582,15 +605,16 @@ export default function NouveauTrajetPage() {
                   type="date"
                   value={arrivalDate}
                   onChange={(e) => setArrivalDate(e.target.value)}
+                  disabled={isReadOnly}
                   min={departureDate || new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
                   Heure d&apos;arrivée (estimée)
                 </label>
-                <TimePicker value={arrivalTime} onChange={setArrivalTime} />
+                <TimePicker value={arrivalTime} onChange={setArrivalTime} disabled={isReadOnly} />
               </div>
             </div>
           </div>
@@ -617,11 +641,13 @@ export default function NouveauTrajetPage() {
                     {buses.map((bus) => (
                       <label
                         key={bus.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition border ${
+                        className={`flex items-center gap-3 p-3 rounded-xl transition border ${
                           selectedBusId === bus.id
                             ? 'border-purple-300 bg-purple-50'
+                            : isReadOnly 
+                            ? 'border-gray-100 bg-gray-50' 
                             : 'border-gray-100 hover:border-gray-200'
-                        }`}
+                        } ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       >
                         <input
                           type="radio"
@@ -633,6 +659,7 @@ export default function NouveauTrajetPage() {
                             setAvailableSeatsCount('')
                             setBusAvailability(null)
                           }}
+                          disabled={isReadOnly}
                           className="sr-only"
                         />
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100">
@@ -687,7 +714,8 @@ export default function NouveauTrajetPage() {
                 <select
                   value={selectedDriverId}
                   onChange={(e) => setSelectedDriverId(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition"
+                  disabled={isReadOnly}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 >
                   <option value="">Sélectionner un chauffeur...</option>
                   {mockDrivers.map((driver) => (
@@ -722,7 +750,8 @@ export default function NouveauTrajetPage() {
                     value={basePrice}
                     onChange={(e) => setBasePrice(e.target.value)}
                     placeholder="5000"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl font-bold outline-none focus:border-gray-400 pr-16"
+                    disabled={isReadOnly}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl font-bold outline-none focus:border-gray-400 pr-16 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     style={{ color: '#1a1d29' }}
                     min="0"
                   />
@@ -742,7 +771,7 @@ export default function NouveauTrajetPage() {
                   value={availableSeatsCount}
                   onChange={(e) => setAvailableSeatsCount(e.target.value)}
                   placeholder={selectedBus ? `Max: ${selectedBus.seats}` : 'Sélectionnez un bus'}
-                  disabled={!selectedBusId}
+                  disabled={!selectedBusId || isReadOnly}
                   max={selectedBus?.seats}
                   min="1"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xl font-bold outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-300"

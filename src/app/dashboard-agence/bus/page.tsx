@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Plus, Search, MoreHorizontal, Bus, Wrench, MapPin, Fuel,
+  Plus, Search, MoreHorizontal, Bus, Wrench, MapPin,
   Users, CheckCircle2, X, Wifi, BatteryCharging,
   Snowflake, Eye, Edit3, RotateCcw, Trash2, LayoutGrid, List,
   Monitor,
@@ -11,6 +11,73 @@ import { supabase } from '@/lib/supabase'
 import type { BusItem, SeatLayout } from '@/lib/supabase'
 
 // ───── Helpers ─────
+
+// Calcule la progression du trajet en % (0-100)
+function getTripProgress(departure: string, arrival: string): number {
+  const now = Date.now()
+  const dep = new Date(departure).getTime()
+  const arr = new Date(arrival).getTime()
+  if (arr <= dep) return 100
+  const progress = ((now - dep) / (arr - dep)) * 100
+  return Math.min(100, Math.max(0, Math.round(progress)))
+}
+
+// Libellé de la progression
+function getTripProgressLabel(progress: number): string {
+  if (progress >= 95) return 'Arrivée imminente'
+  if (progress >= 75) return 'Presque arrivé'
+  if (progress >= 50) return 'En milieu de trajet'
+  if (progress >= 25) return 'En route'
+  return 'Vient de partir'
+}
+
+// Couleur de la progression
+function getTripProgressColor(progress: number): string {
+  if (progress >= 95) return '#22c55e'  // vert — presque arrivé
+  if (progress >= 75) return '#3b82f6'  // bleu
+  if (progress >= 50) return '#8b5cf6'  // violet
+  if (progress >= 25) return '#f59e0b'  // orange
+  return '#6366f1'                       // indigo — vient de partir
+}
+
+// Composant barre de progression trajet
+function TripProgressBar({ bus }: { bus: BusItem }) {
+  const trip = bus.active_trip
+  if (!trip || bus.status !== 'en_route') {
+    // Bus pas en route — pas de barre
+    return (
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] text-gray-400">Pas de trajet en cours</span>
+      </div>
+    )
+  }
+
+  const progress = getTripProgress(trip.departure_datetime, trip.arrival_datetime)
+  const label = getTripProgressLabel(progress)
+  const color = getTripProgressColor(progress)
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] text-gray-400">
+          {trip.departure_city} → {trip.arrival_city}
+        </span>
+        <span className="text-[10px] font-semibold" style={{ color }}>
+          {label}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+          <div
+            className="h-1.5 rounded-full transition-all"
+            style={{ width: `${progress}%`, background: color }}
+          />
+        </div>
+        <span className="text-[10px] font-medium text-gray-500">{progress}%</span>
+      </div>
+    </div>
+  )
+}
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     disponible: { label: 'Disponible', color: '#22c55e', bg: '#f0fdf4' },
@@ -477,16 +544,16 @@ export default function BusPage() {
     if (!agencyId) return
     setLoading(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
       const res = await fetch('/api/buses/list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agency_id: agencyId }),
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
       if (res.ok) {
-        setBuses(data.buses || [])
-        if (data.buses?.length > 0 && !selectedBus) {
-          setSelectedBus(data.buses[0])
+        setBuses(data || [])
+        if (data?.length > 0 && !selectedBus) {
+          setSelectedBus(data[0])
         }
       }
     } catch { /* ignore */ }
@@ -714,17 +781,7 @@ export default function BusPage() {
                         {bus.current_driver && <span className="flex items-center gap-1"><Users size={10} />{bus.current_driver}</span>}
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      <span className="text-[10px] text-gray-400">Carburant</span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                        <div className="h-1.5 rounded-full transition-all"
-                          style={{
-                            width: `${bus.fuel_level}%`,
-                            background: bus.fuel_level > 50 ? '#22c55e' : bus.fuel_level > 20 ? '#f59e0b' : '#ef4444',
-                          }} />
-                      </div>
-                      <span className="text-[10px] font-medium text-gray-500">{bus.fuel_level}%</span>
-                    </div>
+                    <TripProgressBar bus={bus} />
                   </div>
                 ))}
               </div>
@@ -792,13 +849,49 @@ export default function BusPage() {
                       ['Kilométrage', formatMileage(selectedBus.mileage)],
                       ['Dernière révision', formatDate(selectedBus.last_revision)],
                       ['Prochaine révision', formatDate(selectedBus.next_revision)],
-                      ['Carburant', `${selectedBus.fuel_level}%`],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between text-sm">
                         <span className="text-gray-400">{label}</span>
                         <span className="font-medium" style={{ color: '#1a1d29' }}>{val}</span>
                       </div>
                     ))}
+
+                    {/* Progression du trajet en cours */}
+                    {selectedBus.status === 'en_route' && selectedBus.active_trip && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Trajet en cours</p>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">Itinéraire</span>
+                          <span className="font-medium" style={{ color: '#1a1d29' }}>
+                            {selectedBus.active_trip.departure_city} → {selectedBus.active_trip.arrival_city}
+                          </span>
+                        </div>
+                        {selectedBus.active_trip.driver_name && (
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-400">Chauffeur</span>
+                            <span className="font-medium" style={{ color: '#1a1d29' }}>{selectedBus.active_trip.driver_name}</span>
+                          </div>
+                        )}
+                        <div className="mt-2">
+                          {(() => {
+                            const progress = getTripProgress(selectedBus.active_trip!.departure_datetime, selectedBus.active_trip!.arrival_datetime)
+                            const color = getTripProgressColor(progress)
+                            const label = getTripProgressLabel(progress)
+                            return (
+                              <>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-400">Progression</span>
+                                  <span className="font-semibold" style={{ color }}>{label} — {progress}%</span>
+                                </div>
+                                <div className="bg-gray-100 rounded-full h-2">
+                                  <div className="h-2 rounded-full transition-all" style={{ width: `${progress}%`, background: color }} />
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )}
                     {selectedBus.current_driver && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-400">Chauffeur actuel</span>
@@ -870,17 +963,7 @@ export default function BusPage() {
                     {(bus.features?.length || 0) > 3 && <span className="text-[10px] text-gray-400">+{bus.features!.length - 3}</span>}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Fuel size={10} className="text-gray-400" />
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                      <div className="h-1.5 rounded-full transition-all"
-                        style={{
-                          width: `${bus.fuel_level}%`,
-                          background: bus.fuel_level > 50 ? '#22c55e' : bus.fuel_level > 20 ? '#f59e0b' : '#ef4444',
-                        }} />
-                    </div>
-                    <span className="text-[10px] font-medium text-gray-500">{bus.fuel_level}%</span>
-                  </div>
+                  <TripProgressBar bus={bus} />
 
                   {bus.current_driver && (
                     <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1">

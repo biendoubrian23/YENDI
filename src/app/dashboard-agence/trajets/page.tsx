@@ -88,6 +88,15 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+// Vérifie si un trajet est actuellement en cours de déplacement
+function isTripInTransit(trip: ScheduledTrip): boolean {
+  if (trip.status !== 'actif') return false
+  const now = Date.now()
+  const dep = new Date(trip.departure_datetime).getTime()
+  const arr = new Date(trip.arrival_datetime).getTime()
+  return now >= dep && now <= arr
+}
+
 // ══════════════════════════════════════════════════════════════
 // PAGE PRINCIPALE
 // ══════════════════════════════════════════════════════════════
@@ -566,24 +575,39 @@ export default function TrajetsPage() {
 
               {/* Actions */}
               <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-gray-100">
+                {isTripInTransit(selectedTrip) && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-xs text-blue-600 mb-1">
+                    <MapPin size={14} className="shrink-0" />
+                    <span className="font-medium">Ce trajet est actuellement en cours de déplacement.</span>
+                  </div>
+                )}
                 <button
-                  onClick={() => router.push(`/dashboard-agence/trajets/nouveau?edit=${selectedTrip.id}`)}
+                  onClick={() => router.push(`/dashboard-agence/trajets/nouveau?edit=${selectedTrip.id}${isTripInTransit(selectedTrip) ? '&readonly=true' : ''}`)}
                   className="w-full py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition"
                 >
-                  Modifier itinéraire
+                  {isTripInTransit(selectedTrip) ? 'Voir l\'itinéraire' : 'Modifier itinéraire'}
                 </button>
-                <button
-                  onClick={() => toggleTripStatus(selectedTrip)}
-                  disabled={togglingStatus}
-                  className={`w-full py-2.5 text-sm font-semibold border rounded-xl transition flex items-center justify-center gap-2 ${
-                    selectedTrip.status === 'actif'
-                      ? 'text-red-500 border-red-200 hover:bg-red-50'
-                      : 'text-green-600 border-green-200 hover:bg-green-50'
-                  }`}
-                >
-                  {togglingStatus && <Loader2 size={14} className="animate-spin" />}
-                  {selectedTrip.status === 'actif' ? 'Suspendre le trajet' : 'Activer le trajet'}
-                </button>
+                {isTripInTransit(selectedTrip) ? (
+                  <button
+                    disabled
+                    className="w-full py-2.5 text-sm font-semibold text-gray-400 border border-gray-200 rounded-xl bg-gray-50 cursor-not-allowed flex items-center justify-center gap-2 opacity-60"
+                  >
+                    Bus en déplacement — action impossible
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => toggleTripStatus(selectedTrip)}
+                    disabled={togglingStatus}
+                    className={`w-full py-2.5 text-sm font-semibold border rounded-xl transition flex items-center justify-center gap-2 ${
+                      selectedTrip.status === 'actif'
+                        ? 'text-red-500 border-red-200 hover:bg-red-50'
+                        : 'text-green-600 border-green-200 hover:bg-green-50'
+                    }`}
+                  >
+                    {togglingStatus && <Loader2 size={14} className="animate-spin" />}
+                    {selectedTrip.status === 'actif' ? 'Suspendre le trajet' : 'Activer le trajet'}
+                  </button>
+                )}
               </div>
             </>
           ) : (

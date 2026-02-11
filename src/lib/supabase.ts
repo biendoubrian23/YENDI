@@ -76,6 +76,14 @@ export interface SeatLayout {
   rows: number       // nombre de rangées normales
 }
 
+export interface ActiveTrip {
+  departure_datetime: string
+  arrival_datetime: string
+  driver_name: string | null
+  departure_city: string
+  arrival_city: string
+}
+
 export interface BusItem {
   id: string
   agency_id: string
@@ -96,6 +104,7 @@ export interface BusItem {
   is_vip: boolean
   created_at: string
   updated_at: string
+  active_trip?: ActiveTrip | null
 }
 
 export interface Invitation {
