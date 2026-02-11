@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
-        role: 'admin',
+        role: role, // Utiliser le rôle assigné (manager, operateur, visiteur)
         phone: phone || null,
       },
     })

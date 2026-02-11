@@ -50,8 +50,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Impossible de modifier le propriétaire principal' }, { status: 403 })
     }
 
-    // Mise à jour du rôle dans agency_admins
+    // Mise à jour du rôle dans agency_admins ET profiles
     if (newRole && ['manager', 'operateur', 'visiteur'].includes(newRole)) {
+      // 1. Mettre à jour dans agency_admins
       const { error: roleError } = await supabaseAdmin
         .from('agency_admins')
         .update({ role: newRole })
@@ -60,6 +61,17 @@ export async function PUT(request: Request) {
       if (roleError) {
         console.error('Erreur mise à jour rôle:', roleError)
         return NextResponse.json({ error: 'Erreur mise à jour du rôle' }, { status: 500 })
+      }
+
+      // 2. Mettre à jour aussi dans profiles.role pour cohérence
+      const { error: profileRoleError } = await supabaseAdmin
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', member.profile_id)
+
+      if (profileRoleError) {
+        console.error('Erreur mise à jour rôle dans profiles:', profileRoleError)
+        // On continue quand même, ce n'est pas bloquant
       }
     }
 
