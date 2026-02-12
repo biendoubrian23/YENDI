@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, BorderRadius, FontSize, Spacing } from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { Cache } from '../../lib/cache';
 
 // Type pour une réservation
 interface Reservation {
@@ -49,7 +50,7 @@ export default function MyTicketsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Charger les réservations de l'utilisateur
+  // Charger les réservations de l'utilisateur (cache-first, puis réseau)
   const fetchReservations = useCallback(async () => {
     if (!clientProfile) {
       setLoading(false);
@@ -57,7 +58,14 @@ export default function MyTicketsScreen({ navigation }: any) {
     }
 
     try {
-      // Utiliser la fonction RPC qui cherche par client_id, booked_by_phone ou passenger_phone
+      // 1. Charger depuis le cache pour affichage immédiat
+      const cached = await Cache.get<Reservation[]>(Cache.KEYS.RESERVATIONS);
+      if (cached && cached.length > 0 && reservations.length === 0) {
+        setReservations(cached);
+        setLoading(false); // Arrêter le spinner dès qu'on a le cache
+      }
+
+      // 2. Tenter de charger depuis le réseau
       const { data, error } = await supabase
         .rpc('get_client_reservations', {
           p_client_id: clientProfile.id || null,
@@ -67,7 +75,6 @@ export default function MyTicketsScreen({ navigation }: any) {
       if (error) {
         console.error('Erreur chargement réservations:', error);
         // Fallback : requête directe si la fonction RPC n'existe pas encore
-        // Construire le filtre dynamiquement pour gérer phone null
         const filters: string[] = [];
         if (clientProfile.id) {
           filters.push(`booked_by_client_id.eq.${clientProfile.id}`);
@@ -84,15 +91,21 @@ export default function MyTicketsScreen({ navigation }: any) {
             .or(filters.join(','))
             .order('reserved_at', { ascending: false });
           
-          if (!fallbackError) {
-            setReservations(fallbackData || []);
+          if (!fallbackError && fallbackData) {
+            setReservations(fallbackData);
+            await Cache.set(Cache.KEYS.RESERVATIONS, fallbackData);
           }
         }
+        // Si tout échoue, le cache chargé en étape 1 reste visible
       } else {
-        setReservations(data || []);
+        const freshData = data || [];
+        setReservations(freshData);
+        // 3. Mettre à jour le cache
+        await Cache.set(Cache.KEYS.RESERVATIONS, freshData);
       }
     } catch (err) {
       console.error('Erreur:', err);
+      // En cas d'erreur réseau totale, le cache reste affiché
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, ClientProfile } from '../lib/supabase';
+import { Cache } from '../lib/cache';
 
 interface AuthContextType {
   session: Session | null;
@@ -32,9 +33,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Charger le profil client
+  // Charger le profil client (cache-first, puis réseau)
   const fetchClientProfile = async (userId: string, userMetadata?: any) => {
     try {
+      // 1. Charger depuis le cache immédiatement
+      const cached = await Cache.get<ClientProfile>(Cache.KEYS.CLIENT_PROFILE);
+      if (cached && cached.id === userId) {
+        setClientProfile(cached);
+      }
+
+      // 2. Tenter de charger depuis le réseau
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -43,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.log('Pas de profil client trouvé:', error.message);
+        // En offline on garde le cache déjà chargé ci-dessus
         return;
       }
       
@@ -58,8 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setClientProfile(profile);
+      // 3. Sauvegarder en cache pour utilisation offline
+      await Cache.set(Cache.KEYS.CLIENT_PROFILE, profile);
     } catch (err) {
       console.error('Erreur chargement profil:', err);
+      // En cas d'erreur réseau, le cache chargé en étape 1 reste affiché
     }
   };
 
@@ -140,6 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setClientProfile(null);
+    // Vider le cache à la déconnexion
+    await Cache.clearAll();
   };
 
   return (

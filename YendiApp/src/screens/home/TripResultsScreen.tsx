@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -252,6 +252,7 @@ export default function TripResultsScreen({ route, navigation }: any) {
           busSeatLayout: bus.seat_layout,
           departureLocation: r.departure_location,
           arrivalLocation: r.arrival_location,
+          departureDatetime: trip.departure_datetime,
         };
       });
 
@@ -278,6 +279,64 @@ export default function TripResultsScreen({ route, navigation }: any) {
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterDirectOnly, setFilterDirectOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'departure' | 'duration'>('price');
+
+  /* ─── Apply filters & sorting ─── */
+  const filteredTrips = useMemo(() => {
+    let result = [...trips];
+
+    // Filter by company
+    if (filterCompanies.length > 0) {
+      result = result.filter((t) => filterCompanies.includes(t.company));
+    }
+
+    // Filter by time slot
+    if (filterTimeSlots.length > 0) {
+      result = result.filter((t) => {
+        const hour = parseInt(t.departureTime.split(':')[0], 10);
+        return filterTimeSlots.some((slot) => {
+          if (slot === 'morning') return hour >= 6 && hour < 12;
+          if (slot === 'afternoon') return hour >= 12 && hour < 18;
+          if (slot === 'evening') return hour >= 18 || hour < 6;
+          return false;
+        });
+      });
+    }
+
+    // Filter by trip type
+    if (filterTypes.length > 0) {
+      result = result.filter((t) => filterTypes.includes(t.type));
+    }
+
+    // Filter direct only
+    if (filterDirectOnly) {
+      result = result.filter((t) => t.type === 'Direct');
+    }
+
+    // Filter by features
+    if (filterFeatures.length > 0) {
+      const featureMap: Record<string, string> = {
+        clim: 'Climatisé', wc: 'WC', wifi: 'Wifi', prise: 'Prise', bagage: 'Bagage inclus',
+      };
+      result = result.filter((t) =>
+        filterFeatures.every((fId) => t.features.includes(featureMap[fId]))
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === 'price') return a.priceValue - b.priceValue;
+      if (sortBy === 'departure') return a.departureTime.localeCompare(b.departureTime);
+      // duration: parse "Xh YYm" to minutes
+      const parseDuration = (d: string) => {
+        const h = parseInt(d.match(/(\d+)h/)?.[1] || '0', 10);
+        const m = parseInt(d.match(/(\d+)m/)?.[1] || '0', 10);
+        return h * 60 + m;
+      };
+      return parseDuration(a.duration) - parseDuration(b.duration);
+    });
+
+    return result;
+  }, [trips, filterCompanies, filterTimeSlots, filterTypes, filterDirectOnly, filterFeatures, sortBy]);
 
   const handleSelectTrip = (trip: any) => {
     navigation.navigate('SeatSelection', { trip, from, to, date, passengers });
@@ -404,21 +463,36 @@ export default function TripResultsScreen({ route, navigation }: any) {
           </View>
         )}
 
-        {!loading && !error && trips.length > 0 && (
+        {!loading && !error && trips.length > 0 && filteredTrips.length === 0 && (
+          <View style={styles.centerContainer}>
+            <Ionicons name="filter-outline" size={48} color={Colors.gray400} />
+            <Text style={styles.emptyTitle}>Aucun résultat</Text>
+            <Text style={styles.emptyText}>
+              Aucun trajet ne correspond à vos filtres.{"\n"}Modifiez vos critères.
+            </Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => { resetFilters(); }}>
+              <Text style={styles.retryBtnText}>Réinitialiser les filtres</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && filteredTrips.length > 0 && (
           <FlatList
-            data={trips}
+            data={filteredTrips}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.tripList}
             showsVerticalScrollIndicator={false}
             style={styles.tripListContainer}
-            renderItem={({ item }) => (
-              <View style={styles.tripCard}>
+            renderItem={({ item }) => {
+              const isPast = new Date(item.departureDatetime) < new Date();
+              return (
+              <View style={[styles.tripCard, isPast && { opacity: 0.45 }]}>
               {/* Row 1: Company badge left + Price right */}
               <View style={styles.tripRow1}>
-                <View style={[styles.companyBadge, { borderColor: item.companyColor, borderWidth: 1.5 }]}>
-                  <Text style={[styles.companyText, { color: item.companyColor }]}>{item.company}</Text>
+                <View style={[styles.companyBadge, { borderColor: isPast ? Colors.gray400 : item.companyColor, borderWidth: 1.5 }]}>
+                  <Text style={[styles.companyText, { color: isPast ? Colors.gray400 : item.companyColor }]}>{item.company}</Text>
                 </View>
-                <Text style={styles.priceText}>{item.price}</Text>
+                <Text style={[styles.priceText, isPast && { color: Colors.gray400 }]}>{item.price}</Text>
               </View>
 
               {/* Row 2: Departure left ──── Arrival right (under price) */}
@@ -458,26 +532,40 @@ export default function TripResultsScreen({ route, navigation }: any) {
                     </View>
                   ))}
                 </View>
-                <TouchableOpacity
-                  style={styles.selectBtn}
-                  onPress={() => handleSelectTrip(item)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.selectBtnText}>Sélectionner</Text>
-                </TouchableOpacity>
+                {isPast ? (
+                  <View style={[styles.selectBtn, { backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }]}>
+                    <Text style={[styles.selectBtnText, { color: Colors.gray400 }]}>Indisponible</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectBtn}
+                    onPress={() => handleSelectTrip(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectBtnText}>Sélectionner</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
-              {/* Seats warning */}
-              {item.seatsLeft && (
+              {/* Seats warning or past/full indicator */}
+              {isPast ? (
+                <View style={[styles.seatsWarning, { backgroundColor: '#f3f4f6' }]}>
+                  <Ionicons name="bus" size={13} color={Colors.gray400} />
+                  <Text style={[styles.seatsWarningText, { color: Colors.gray400 }]}>
+                    Bus complet
+                  </Text>
+                </View>
+              ) : item.seatsLeft ? (
                 <View style={styles.seatsWarning}>
                   <Ionicons name="flame" size={13} color={Colors.danger} />
                   <Text style={styles.seatsWarningText}>
                     Plus que {item.seatsLeft} sièges à ce prix !
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
-            )}
+              );
+            }}
           />
         )}
       </View>

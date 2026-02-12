@@ -97,7 +97,7 @@ export default function ReservationsPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const perPage = 10
+  const perPage = 20
   const searchTimeout = useRef<any>(null)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [showNewReservation, setShowNewReservation] = useState(false)
@@ -255,12 +255,28 @@ export default function ReservationsPage() {
           </tbody>
         </table>
         <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400">{total} reservation{total > 1 ? 's' : ''}</p>
-          <div className="flex items-center gap-2">
+          <p className="text-xs text-gray-400">{total} reservation{total > 1 ? 's' : ''} • Page {currentPage}/{totalPages || 1}</p>
+          <div className="flex items-center gap-1">
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition disabled:opacity-30"><ChevronLeft size={14} /></button>
-            {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
-              <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`w-8 h-8 rounded-lg text-xs font-medium transition ${currentPage === i + 1 ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>{i + 1}</button>
-            ))}
+            {(() => {
+              const pages: (number | '...')[] = []
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i)
+              } else {
+                pages.push(1)
+                if (currentPage > 3) pages.push('...')
+                for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i)
+                if (currentPage < totalPages - 2) pages.push('...')
+                pages.push(totalPages)
+              }
+              return pages.map((p, idx) =>
+                p === '...' ? (
+                  <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">…</span>
+                ) : (
+                  <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-medium transition ${currentPage === p ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>{p}</button>
+                )
+              )
+            })()}
             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition disabled:opacity-30"><ChevronRight size={14} /></button>
           </div>
         </div>
