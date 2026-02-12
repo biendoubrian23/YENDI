@@ -36,12 +36,24 @@ export async function GET(
 
     const { id } = await params
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('scheduled_trips')
-      .select('*, routes(*), buses(*)')
+      .select('*, routes(*), buses(*), drivers(first_name, last_name)')
       .eq('id', id)
       .eq('agency_id', agencyId)
       .single()
+
+    // Fallback si la table drivers n'existe pas encore
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from('scheduled_trips')
+        .select('*, routes(*), buses(*)')
+        .eq('id', id)
+        .eq('agency_id', agencyId)
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error || !data) {
       return NextResponse.json({ error: 'Trajet introuvable' }, { status: 404 })
@@ -73,7 +85,7 @@ export async function PUT(
       bus_id,
       departure_datetime,
       arrival_datetime,
-      driver_name,
+      driver_id,
       base_price,
       available_seats_count,
     } = body
@@ -123,7 +135,7 @@ export async function PUT(
     if (bus_id) updateData.bus_id = bus_id
     if (departure_datetime) updateData.departure_datetime = departure_datetime
     if (arrival_datetime) updateData.arrival_datetime = arrival_datetime
-    if (driver_name !== undefined) updateData.driver_name = driver_name || null
+    if (driver_id !== undefined) updateData.driver_id = driver_id || null
     if (base_price !== undefined) updateData.base_price = base_price
     if (total_seats) updateData.total_seats = total_seats
     if (available_seats_count !== undefined) {
@@ -168,13 +180,26 @@ export async function PUT(
       }
     }
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('scheduled_trips')
       .update(updateData)
       .eq('id', id)
       .eq('agency_id', agencyId)
-      .select('*, routes(*), buses(*)')
+      .select('*, routes(*), buses(*), drivers(first_name, last_name)')
       .single()
+
+    // Fallback si drivers n'existe pas encore
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from('scheduled_trips')
+        .update(updateData)
+        .eq('id', id)
+        .eq('agency_id', agencyId)
+        .select('*, routes(*), buses(*)')
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) throw error
 
@@ -220,13 +245,25 @@ export async function PATCH(
       }
     }
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('scheduled_trips')
       .update({ status })
       .eq('id', id)
       .eq('agency_id', agencyId)
-      .select('*, routes(*), buses(*)')
+      .select('*, routes(*), buses(*), drivers(first_name, last_name)')
       .single()
+
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from('scheduled_trips')
+        .update({ status })
+        .eq('id', id)
+        .eq('agency_id', agencyId)
+        .select('*, routes(*), buses(*)')
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) throw error
 

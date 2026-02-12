@@ -14,13 +14,13 @@ import {
 } from 'lucide-react'
 import { supabase, CAMEROON_CITIES, type BusItem, type RouteStop } from '@/lib/supabase'
 
-// Chauffeurs mockés (temporaire — sera géré dans Équipe & Droits)
-const mockDrivers = [
-  { id: '1', name: 'Jean-Paul Kamga' },
-  { id: '2', name: 'Emmanuel Ndjock' },
-  { id: '3', name: 'Pierre Tchinda' },
-  { id: '4', name: 'Samuel Fotso' },
-]
+interface Driver {
+  id: string
+  first_name: string
+  last_name: string
+  phone: string
+  status: 'actif' | 'inactif' | 'suspendu'
+}
 
 // Composant TimePicker avec selects (pas de scroll infini)
 function TimePicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
@@ -84,6 +84,7 @@ export default function NouveauTrajetPage() {
 
   // Data state
   const [buses, setBuses] = useState<BusItem[]>([])
+  const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
@@ -97,7 +98,8 @@ export default function NouveauTrajetPage() {
   const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   const selectedBus = buses.find(b => b.id === selectedBusId)
-  const selectedDriver = mockDrivers.find(d => d.id === selectedDriverId)
+  const selectedDriver = drivers.find(d => d.id === selectedDriverId)
+  const selectedDriverName = selectedDriver ? `${selectedDriver.first_name} ${selectedDriver.last_name}` : null
 
   // Vérifier la disponibilité du bus quand les paramètres changent
   useEffect(() => {
@@ -159,6 +161,15 @@ export default function NouveauTrajetPage() {
             setBuses(data.filter((b: BusItem) => b.status === 'disponible'))
           }
         }
+
+        // Charger les chauffeurs
+        const driversRes = await fetch('/api/drivers/list', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (driversRes.ok) {
+          const driversData = await driversRes.json()
+          setDrivers(driversData.filter((d: Driver) => d.status === 'actif'))
+        }
       } catch {
         // silently fail
       } finally {
@@ -214,8 +225,8 @@ export default function NouveauTrajetPage() {
 
           // Bus & chauffeur
           if (trip.bus_id) setSelectedBusId(trip.bus_id)
-          if (trip.driver_name) {
-            const driver = mockDrivers.find(d => d.name === trip.driver_name)
+          if (trip.driver_id) {
+            const driver = drivers.find(d => d.id === trip.driver_id)
             if (driver) setSelectedDriverId(driver.id)
           }
 
@@ -309,7 +320,7 @@ export default function NouveauTrajetPage() {
             bus_id: selectedBusId,
             departure_datetime: departureDatetime,
             arrival_datetime: arrivalDatetime,
-            driver_name: selectedDriver?.name || null,
+            driver_id: selectedDriverId || null,
             base_price: parseInt(basePrice),
             available_seats_count: parseInt(availableSeatsCount),
           }),
@@ -350,7 +361,7 @@ export default function NouveauTrajetPage() {
             bus_id: selectedBusId,
             departure_datetime: departureDatetime,
             arrival_datetime: arrivalDatetime,
-            driver_name: selectedDriver?.name || null,
+            driver_id: selectedDriverId || null,
             base_price: parseInt(basePrice),
             available_seats_count: parseInt(availableSeatsCount),
           }),
@@ -382,14 +393,14 @@ export default function NouveauTrajetPage() {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div className="flex items-center justify-between pb-6 mb-6 flex-wrap gap-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link href="/dashboard-agence/trajets" className="text-gray-400 hover:text-gray-600 text-sm transition">
               ← Trajets
             </Link>
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1a1d29' }}>
+          <h1 className="text-3xl font-bold" style={{ color: '#1a1d29' }}>
             {isReadOnly ? 'Détails du Trajet (en cours)' : isEditMode ? 'Modifier le Trajet' : 'Planification de Voyage'}
           </h1>
         </div>
@@ -718,15 +729,12 @@ export default function NouveauTrajetPage() {
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 >
                   <option value="">Sélectionner un chauffeur...</option>
-                  {mockDrivers.map((driver) => (
+                  {drivers.map((driver) => (
                     <option key={driver.id} value={driver.id}>
-                      {driver.name}
+                      {driver.first_name} {driver.last_name}
                     </option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-2 italic">
-                  Les chauffeurs seront gérés dans Équipe & Droits (à venir)
-                </p>
               </div>
             </div>
           </div>
@@ -841,7 +849,7 @@ export default function NouveauTrajetPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Chauffeur</span>
-                  <span className="font-medium">{selectedDriver?.name || '—'}</span>
+                  <span className="font-medium">{selectedDriverName || '—'}</span>
                 </div>
                 {stops.length > 0 && (
                   <div className="flex justify-between">

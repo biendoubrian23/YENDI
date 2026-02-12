@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -57,15 +58,13 @@ export default function Sidebar() {
       {/* Logo */}
       <div>
         <div className="flex items-center gap-2.5 px-3 mb-10">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-            style={{ background: '#1a1d29' }}
-          >
-            Y
-          </div>
-          <span className="text-xl font-bold" style={{ color: '#1a1d29' }}>
-            YENDI
-          </span>
+          <Image 
+            src="/yendilogo.png" 
+            alt="YENDI Logo" 
+            width={120} 
+            height={40}
+            className="object-contain"
+          />
         </div>
 
         {/* Navigation */}

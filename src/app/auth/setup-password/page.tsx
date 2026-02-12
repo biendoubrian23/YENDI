@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Suspense } from 'react'
 
@@ -91,16 +92,13 @@ function SetupPasswordForm() {
         <div className="bg-white rounded-2xl shadow-lg p-10" style={{ border: '1px solid #e5e7eb' }}>
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-              style={{ background: '#1a1d29' }}
-            >
-              Y.
-            </div>
-            <div>
-              <span className="text-2xl font-bold" style={{ color: '#1a1d29' }}>YENDI</span>
-              <span className="text-2xl font-light text-gray-400 ml-1">Admin</span>
-            </div>
+            <Image 
+              src="/yendilogo.png" 
+              alt="YENDI Logo" 
+              width={150} 
+              height={50}
+              className="object-contain"
+            />
           </div>
 
           {success ? (

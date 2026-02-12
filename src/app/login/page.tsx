@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff, Check, Lock } from 'lucide-react'
 
@@ -309,16 +310,14 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-              style={{ background: '#1a1d29' }}
-            >
-              Y.
-            </div>
-            <div>
-              <span className="text-2xl font-bold" style={{ color: '#1a1d29' }}>YENDI</span>
-              <span className="text-2xl font-light text-gray-400 ml-1">Admin</span>
-            </div>
+            <Image 
+              src="/yendilogo.png" 
+              alt="YENDI Logo" 
+              width={150} 
+              height={50}
+              className="object-contain"
+            />
+            <span className="text-2xl font-light text-gray-400 ml-1">Admin</span>
           </div>
 
           <form onSubmit={handleLogin}>

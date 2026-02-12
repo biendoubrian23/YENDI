@@ -28,6 +28,17 @@ export default function InvoiceScreen({ route, navigation }: any) {
     });
   };
 
+  // Formater l'heure uniquement
+  const formatTime = (dateString: string) => {
+    if (!dateString) return '--:--';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Douala',
+    });
+  };
+
   // Générer un numéro de facture basé sur l'ID de réservation
   const invoiceNumber = reservation?.reservation_id 
     ? `INV-${reservation.reservation_id.substring(0, 6).toUpperCase()}`
@@ -95,6 +106,16 @@ export default function InvoiceScreen({ route, navigation }: any) {
           <View style={styles.invoiceRow}>
             <Text style={styles.invoiceLabel}>Trajet</Text>
             <Text style={styles.invoiceValue}>{invoiceData.route}</Text>
+          </View>
+          <View style={styles.invoiceDivider} />
+          <View style={styles.invoiceRow}>
+            <Text style={styles.invoiceLabel}>Départ</Text>
+            <Text style={styles.invoiceValue}>{formatTime(reservation?.departure_datetime)}</Text>
+          </View>
+          <View style={styles.invoiceDivider} />
+          <View style={styles.invoiceRow}>
+            <Text style={styles.invoiceLabel}>Arrivée</Text>
+            <Text style={styles.invoiceValue}>{formatTime(reservation?.arrival_datetime)}</Text>
           </View>
           <View style={styles.invoiceDivider} />
           <View style={styles.invoiceRow}>

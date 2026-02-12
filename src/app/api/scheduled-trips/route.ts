@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       bus_id,
       departure_datetime,
       arrival_datetime,
-      driver_name,
+      driver_id,
       base_price,
       available_seats_count,
     } = body
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         bus_id,
         departure_datetime,
         arrival_datetime,
-        driver_name: driver_name || null,
+        driver_id: driver_id || null,
         base_price,
         total_seats: bus.seats,
         available_seats_count,
@@ -172,7 +172,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabaseAdmin
       .from('scheduled_trips')
-      .select('*, routes(*), buses(*)')
+      .select('*, routes(*), buses(*), drivers(first_name, last_name)')
       .eq('agency_id', agencyId)
       .order('departure_datetime', { ascending: true })
 
@@ -189,7 +189,27 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await query
 
-    if (error) throw error
+    // Si erreur (ex: table drivers n'existe pas encore), retry sans le JOIN drivers
+    if (error) {
+      let fallbackQuery = supabaseAdmin
+        .from('scheduled_trips')
+        .select('*, routes(*), buses(*)')
+        .eq('agency_id', agencyId)
+        .order('departure_datetime', { ascending: true })
+
+      if (date) {
+        const nextDate = new Date(date)
+        nextDate.setDate(nextDate.getDate() + 1)
+        const nextDateStr = nextDate.toISOString().split('T')[0]
+        fallbackQuery = fallbackQuery
+          .lt('departure_datetime', `${nextDateStr}T00:00:00`)
+          .gte('arrival_datetime', `${date}T00:00:00`)
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery
+      if (fallbackError) throw fallbackError
+      return NextResponse.json(fallbackData)
+    }
 
     return NextResponse.json(data)
   } catch (error: unknown) {

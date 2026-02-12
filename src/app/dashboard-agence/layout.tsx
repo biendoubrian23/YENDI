@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   LayoutDashboard,
   Bus,
@@ -11,8 +12,6 @@ import {
   Users,
   Settings,
   LogOut,
-  Bell,
-  Search,
   ChevronUp,
 } from 'lucide-react'
 import { supabase, type Profile, type AdminRole } from '@/lib/supabase'
@@ -45,9 +44,9 @@ const allNavSections: NavSection[] = [
     label: 'OPÉRATIONS',
     items: [
       // Tous les rôles voient ces pages (visiteur en lecture seule)
-      { href: '/dashboard-agence/bus', label: 'Flotte & Bus', icon: Bus },
       { href: '/dashboard-agence/trajets', label: 'Trajets & Lignes', icon: Route },
       { href: '/dashboard-agence/reservations', label: 'Réservations', icon: CalendarCheck, badge: 12 },
+      { href: '/dashboard-agence/bus', label: 'Flotte & Bus', icon: Bus },
     ],
   },
   {
@@ -167,9 +166,13 @@ export default function DashboardAgenceLayout({
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fb' }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#7c3aed' }}>
-            <Bus size={20} className="text-white" />
-          </div>
+          <Image 
+            src="/yendilogo.png" 
+            alt="YENDI Logo" 
+            width={120} 
+            height={40}
+            className="object-contain"
+          />
           <div className="w-8 h-8 border-3 border-gray-200 border-t-purple-600 rounded-full animate-spin" />
         </div>
       </div>
@@ -183,12 +186,13 @@ export default function DashboardAgenceLayout({
         {/* Logo */}
         <div>
           <div className="flex items-center gap-2.5 px-3 mb-8">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ background: '#7c3aed' }}>
-              <Bus size={18} />
-            </div>
-            <span className="text-lg font-bold" style={{ color: '#1a1d29' }}>
-              YENDI
-            </span>
+            <Image 
+              src="/yendilogo.png" 
+              alt="YENDI Logo" 
+              width={120} 
+              height={40}
+              className="object-contain"
+            />
           </div>
 
           {/* Navigation sections - filtrée selon le rôle */}
@@ -264,25 +268,6 @@ export default function DashboardAgenceLayout({
 
       {/* Contenu principal */}
       <main className="flex-1 ml-[250px] overflow-x-hidden min-w-0">
-        {/* Top bar */}
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-8 py-4 flex items-center justify-between">
-          <div />
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2 w-[280px]">
-              <Search size={16} className="text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un trajet, bus..."
-                className="bg-transparent border-none outline-none text-sm text-gray-700 w-full"
-              />
-            </div>
-            <button className="relative p-2 rounded-xl hover:bg-gray-50 transition">
-              <Bell size={20} className="text-gray-500" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
-            </button>
-          </div>
-        </header>
-
         {/* Page content */}
         <div className="p-8">
           {children}

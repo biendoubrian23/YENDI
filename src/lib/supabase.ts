@@ -79,7 +79,10 @@ export interface SeatLayout {
 export interface ActiveTrip {
   departure_datetime: string
   arrival_datetime: string
-  driver_name: string | null
+  drivers: {
+    first_name: string
+    last_name: string
+  } | null
   departure_city: string
   arrival_city: string
 }
@@ -151,7 +154,7 @@ export interface ScheduledTrip {
   bus_id: string
   departure_datetime: string
   arrival_datetime: string
-  driver_name: string | null
+  driver_id: string | null
   base_price: number
   yield_enabled: boolean
   total_seats: number
@@ -163,6 +166,10 @@ export interface ScheduledTrip {
   // Relations jointes
   routes?: RouteItem
   buses?: BusItem
+  drivers?: {
+    first_name: string
+    last_name: string
+  } | null
 }
 
 export type SeatStatus = 'disponible' | 'reserve' | 'confirme' | 'annule'

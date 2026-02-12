@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         agency_id,
         brand,
         model,
-        number: number || 'N/A',
+        number: number,
         plate,
         seats: parseInt(seats),
         seat_layout: seat_layout || { left: 2, right: 2, back_row: 5, rows: 12 },

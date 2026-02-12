@@ -17,12 +17,13 @@ interface TripHistory {
   id: string
   departure_datetime: string
   arrival_datetime: string
-  driver_name: string | null
+  driver_id: string | null
   base_price: number
   total_seats: number
   available_seats_count: number
   status: string
   routes: RouteInfo | null
+  drivers: { first_name: string; last_name: string } | null
 }
 
 interface BusInfo {
@@ -103,7 +104,7 @@ export default function HistoriqueBusPage({ params }: { params: Promise<{ id: st
         r ? `${r.departure_city}${r.departure_location ? ` (${r.departure_location})` : ''}` : '',
         r ? `${r.arrival_city}${r.arrival_location ? ` (${r.arrival_location})` : ''}` : '',
         stopsCount,
-        t.driver_name || '',
+        t.drivers ? `${t.drivers.first_name} ${t.drivers.last_name}` : '',
         t.base_price,
         t.total_seats,
         t.available_seats_count,
@@ -129,12 +130,12 @@ export default function HistoriqueBusPage({ params }: { params: Promise<{ id: st
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div className="flex items-center justify-between pb-6 mb-6 flex-wrap gap-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
         <div>
           <Link href="/dashboard-agence/bus" className="text-sm text-gray-400 hover:text-gray-600 transition">
             ← Retour à la flotte
           </Link>
-          <h1 className="text-xl lg:text-2xl font-bold mt-1" style={{ color: '#1a1d29' }}>
+          <h1 className="text-2xl lg:text-3xl font-bold mt-1" style={{ color: '#1a1d29' }}>
             Historique — {bus ? `${bus.brand} ${bus.model} #${bus.number}` : '...'}
           </h1>
         </div>
@@ -228,7 +229,7 @@ export default function HistoriqueBusPage({ params }: { params: Promise<{ id: st
                         {formatTimeFr(trip.departure_datetime)} → {formatTimeFr(trip.arrival_datetime)}
                       </td>
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                        {trip.driver_name || '—'}
+                        {trip.drivers ? `${trip.drivers.first_name} ${trip.drivers.last_name}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{ color: '#1a1d29' }}>
                         {trip.base_price.toLocaleString()} F

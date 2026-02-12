@@ -245,8 +245,8 @@ function BusFormModal({
 
   const handleSave = async () => {
     setError('')
-    if (!brand || !model || !plate) {
-      setError('Remplissez tous les champs obligatoires (marque, modèle, immatriculation)')
+    if (!brand || !model || !plate || !number) {
+      setError('Remplissez tous les champs obligatoires (marque, modèle, numéro, immatriculation)')
       return
     }
     setSaving(true)
@@ -261,7 +261,7 @@ function BusFormModal({
     const payload = {
       ...(isEdit ? { id: bus.id } : { agency_id: agencyId }),
       brand, model,
-      number: number || 'N/A', // Fallback si vide
+      number: number,
       plate,
       seats: parseInt(seats),
       seat_layout: seatLayout,
@@ -637,8 +637,8 @@ export default function BusPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1a1d29' }}>Gestion de la Flotte</h1>
+      <div className="flex items-center justify-between pb-6 mb-6" style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <h1 className="text-3xl font-bold" style={{ color: '#1a1d29' }}>Gestion de la Flotte</h1>
         <button
           onClick={() => { setEditingBus(null); setShowFormModal(true) }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition hover:opacity-90"
@@ -866,10 +866,12 @@ export default function BusPage() {
                             {selectedBus.active_trip.departure_city} → {selectedBus.active_trip.arrival_city}
                           </span>
                         </div>
-                        {selectedBus.active_trip.driver_name && (
+                        {selectedBus.active_trip.drivers && (
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-400">Chauffeur</span>
-                            <span className="font-medium" style={{ color: '#1a1d29' }}>{selectedBus.active_trip.driver_name}</span>
+                            <span className="font-medium" style={{ color: '#1a1d29' }}>
+                              {selectedBus.active_trip.drivers.first_name} {selectedBus.active_trip.drivers.last_name}
+                            </span>
                           </div>
                         )}
                         <div className="mt-2">

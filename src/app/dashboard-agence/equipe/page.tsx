@@ -39,6 +39,15 @@ interface TeamMember {
   created_at: string
 }
 
+interface Driver {
+  id: string
+  first_name: string
+  last_name: string
+  phone: string
+  status: 'actif' | 'inactif' | 'suspendu'
+  created_at: string
+}
+
 // ============================================================
 // Rôles & Permissions
 // ============================================================
@@ -408,6 +417,113 @@ function EditRoleModal({ member, onClose, onSuccess }: {
 }
 
 // ============================================================
+// Modal: Ajouter un chauffeur
+// ============================================================
+function AddDriverModal({ onClose, onSuccess }: {
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch('/api/drivers/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Erreur lors de la création')
+        setLoading(false)
+        return
+      }
+
+      onSuccess()
+    } catch {
+      setError('Erreur de connexion')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-bold" style={{ color: '#1a1d29' }}>Ajouter un chauffeur</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Prénom <span className="text-red-500">*</span>
+              </label>
+              <input type="text" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-purple-300 transition" placeholder="Prénom" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Nom <span className="text-red-500">*</span>
+              </label>
+              <input type="text" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-purple-300 transition" placeholder="Nom" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Téléphone <span className="text-red-500">*</span>
+            </label>
+            <input type="tel" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-purple-300 transition" placeholder="+237 6XX XXX XXX" />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold hover:bg-gray-50 transition">
+              Annuler
+            </button>
+            <button type="submit" disabled={loading}
+              className="flex-1 px-4 py-3 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: '#22c55e' }}
+            >
+              {loading ? <><Loader2 size={14} className="animate-spin" />Création...</> : 'Créer le chauffeur'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // Modal: Confirmation suppression
 // ============================================================
 function DeleteConfirmModal({ member, onClose, onConfirm, loading }: {
@@ -444,10 +560,12 @@ export default function EquipePage() {
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState<string>('all')
   const [members, setMembers] = useState<TeamMember[]>([])
+  const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [agencyName, setAgencyName] = useState('')
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showAddDriverModal, setShowAddDriverModal] = useState(false)
   const [successCredentials, setSuccessCredentials] = useState<{ email: string; password: string; name: string; role: string } | null>(null)
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
@@ -476,6 +594,16 @@ export default function EquipePage() {
       if (res.ok) {
         const data = await res.json()
         setMembers(data.members)
+      }
+
+      // Charger les chauffeurs
+      const driversRes = await fetch('/api/drivers/list', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (driversRes.ok) {
+        const driversData = await driversRes.json()
+        setDrivers(driversData)
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [])
@@ -549,6 +677,12 @@ export default function EquipePage() {
           onSuccess={(creds) => { setShowAddModal(false); setSuccessCredentials(creds); fetchMembers() }}
         />
       )}
+      {showAddDriverModal && (
+        <AddDriverModal
+          onClose={() => setShowAddDriverModal(false)}
+          onSuccess={() => { setShowAddDriverModal(false); fetchMembers() }}
+        />
+      )}
       {successCredentials && (
         <SuccessModal credentials={successCredentials} agencyName={agencyName} onClose={() => setSuccessCredentials(null)} />
       )}
@@ -562,14 +696,22 @@ export default function EquipePage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1a1d29' }}>Équipe & Droits</h1>
-        <button onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition hover:opacity-90"
-          style={{ background: '#7c3aed' }}
-        >
-          <Plus size={16} /> Ajouter un membre
-        </button>
+      <div className="flex items-center justify-between pb-6 mb-6" style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <h1 className="text-3xl font-bold" style={{ color: '#1a1d29' }}>Équipe & Droits</h1>
+        <div className="flex gap-3">
+          <button onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition hover:opacity-90"
+            style={{ background: '#7c3aed' }}
+          >
+            <Plus size={16} /> Ajouter un membre
+          </button>
+          <button onClick={() => setShowAddDriverModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition hover:opacity-90"
+            style={{ background: '#22c55e' }}
+          >
+            <Plus size={16} /> Ajouter un chauffeur
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -708,6 +850,45 @@ export default function EquipePage() {
             <p className="text-sm text-gray-400">Aucun membre trouvé</p>
           </div>
         )}
+      </div>
+
+      {/* Section Chauffeurs */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold mb-4" style={{ color: '#1a1d29' }}>Chauffeurs ({drivers.length})</h2>
+        <div className="grid grid-cols-4 gap-4">
+          {drivers.map((driver) => (
+            <div key={driver.id} className="bg-white rounded-xl p-4" style={{ border: '1px solid #f0f0f0' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                  style={{ background: driver.status === 'actif' ? '#22c55e' : '#6b7280' }}
+                >
+                  {driver.first_name[0]}{driver.last_name[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: '#1a1d29' }}>
+                    {driver.first_name} {driver.last_name}
+                  </p>
+                  <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                    <Phone size={10} /> {driver.phone}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${
+                  driver.status === 'actif' ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-50'
+                }`}>
+                  {driver.status === 'actif' ? '✓ Actif' : 'Inactif'}
+                </span>
+              </div>
+            </div>
+          ))}
+          {drivers.length === 0 && (
+            <div className="col-span-4 bg-white rounded-xl p-8 text-center" style={{ border: '1px solid #f0f0f0' }}>
+              <Users size={32} className="text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Aucun chauffeur. Cliquez sur le bouton ci-dessus pour en ajouter.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Rôles & Permissions overview */}

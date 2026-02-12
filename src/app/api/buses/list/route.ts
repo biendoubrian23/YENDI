@@ -43,29 +43,46 @@ export async function GET(request: NextRequest) {
 
     // Récupérer tous les trajets actifs pour calculer le statut dynamique
     const now = new Date().toISOString()
-    const { data: activeTrips } = await supabaseAdmin
+    let activeTrips: Record<string, unknown>[] | null = null
+    
+    const { data: tripsWithDrivers, error: tripsErr } = await supabaseAdmin
       .from('scheduled_trips')
-      .select('bus_id, departure_datetime, arrival_datetime, status, driver_name, route_id, routes:route_id(departure_city, arrival_city)')
+      .select('bus_id, departure_datetime, arrival_datetime, status, driver_id, route_id, routes:route_id(departure_city, arrival_city), drivers(first_name, last_name)')
       .eq('agency_id', adminLink.agency_id)
       .in('status', ['actif'])
       .lte('departure_datetime', now)
       .gte('arrival_datetime', now)
 
+    if (tripsErr) {
+      // Fallback sans JOIN drivers
+      const { data: tripsNoDrivers } = await supabaseAdmin
+        .from('scheduled_trips')
+        .select('bus_id, departure_datetime, arrival_datetime, status, driver_id, route_id, routes:route_id(departure_city, arrival_city)')
+        .eq('agency_id', adminLink.agency_id)
+        .in('status', ['actif'])
+        .lte('departure_datetime', now)
+        .gte('arrival_datetime', now)
+      activeTrips = tripsNoDrivers as Record<string, unknown>[] | null
+    } else {
+      activeTrips = tripsWithDrivers as Record<string, unknown>[] | null
+    }
+
     // Map des bus_id vers leur trajet en cours (pour progression)
     const busTripMap = new Map<string, {
       departure_datetime: string
       arrival_datetime: string
-      driver_name: string | null
+      drivers: { first_name: string; last_name: string } | null
       departure_city: string
       arrival_city: string
     }>()
     if (activeTrips) {
       for (const trip of activeTrips) {
         const route = trip.routes as unknown as { departure_city: string; arrival_city: string } | null
+        const drivers = trip.drivers as unknown as { first_name: string; last_name: string } | null
         busTripMap.set(trip.bus_id, {
           departure_datetime: trip.departure_datetime,
           arrival_datetime: trip.arrival_datetime,
-          driver_name: trip.driver_name,
+          drivers: drivers || null,
           departure_city: route?.departure_city || '',
           arrival_city: route?.arrival_city || '',
         })

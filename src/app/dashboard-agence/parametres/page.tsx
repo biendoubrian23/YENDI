@@ -69,8 +69,8 @@ export default function ParametresPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1a1d29' }}>
+      <div className="flex items-center justify-between pb-6 mb-6" style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <h1 className="text-3xl font-bold" style={{ color: '#1a1d29' }}>
           Paramètres
         </h1>
         <button

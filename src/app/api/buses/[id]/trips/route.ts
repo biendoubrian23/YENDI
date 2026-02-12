@@ -47,12 +47,24 @@ export async function GET(
     }
 
     // Récupérer tous les trajets de ce bus, du plus récent au plus ancien
-    const { data: trips, error } = await supabaseAdmin
+    let { data: trips, error } = await supabaseAdmin
       .from('scheduled_trips')
-      .select('id, departure_datetime, arrival_datetime, driver_name, base_price, total_seats, available_seats_count, status, routes(departure_city, departure_location, arrival_city, arrival_location, stops)')
+      .select('id, departure_datetime, arrival_datetime, driver_id, base_price, total_seats, available_seats_count, status, routes(departure_city, departure_location, arrival_city, arrival_location, stops), drivers(first_name, last_name)')
       .eq('bus_id', busId)
       .eq('agency_id', adminLink.agency_id)
       .order('departure_datetime', { ascending: false })
+
+    // Fallback si la table drivers n'existe pas encore
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from('scheduled_trips')
+        .select('id, departure_datetime, arrival_datetime, driver_id, base_price, total_seats, available_seats_count, status, routes(departure_city, departure_location, arrival_city, arrival_location, stops)')
+        .eq('bus_id', busId)
+        .eq('agency_id', adminLink.agency_id)
+        .order('departure_datetime', { ascending: false })
+      trips = fallback.data
+      error = fallback.error
+    }
 
     if (error) throw error
 

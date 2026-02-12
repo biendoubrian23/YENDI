@@ -67,6 +67,16 @@ function formatDuration(departure: string, arrival: string) {
   return `${hours}h ${minutes.toString().padStart(2, '0')}m`
 }
 
+function getDriverName(trip: ScheduledTrip): string | null {
+  if (!trip.drivers) return null
+  return `${trip.drivers.first_name} ${trip.drivers.last_name}`
+}
+
+function getDriverInitials(trip: ScheduledTrip): string {
+  if (!trip.drivers) return '??'
+  return `${trip.drivers.first_name[0]}${trip.drivers.last_name[0]}`.toUpperCase()
+}
+
 function formatDateFr(date: Date) {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
 }
@@ -256,8 +266,8 @@ export default function TrajetsPage() {
   return (
     <div className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h1 className="text-xl lg:text-2xl font-bold" style={{ color: '#1a1d29' }}>
+      <div className="flex items-center justify-between pb-6 mb-6 flex-wrap gap-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <h1 className="text-2xl lg:text-3xl font-bold" style={{ color: '#1a1d29' }}>
           Gestion des Trajets
         </h1>
         <Link
@@ -464,16 +474,16 @@ export default function TrajetsPage() {
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-3 border-t border-gray-50 flex-wrap gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        {trip.driver_name && (
+                        {trip.drivers && (
                           <>
                             <div
                               className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-white"
                               style={{ background: '#7c3aed' }}
                             >
-                              {trip.driver_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              {getDriverInitials(trip)}
                             </div>
                             <span className="text-xs text-gray-400 truncate">
-                              {trip.driver_name}
+                              {getDriverName(trip)}
                             </span>
                           </>
                         )}
@@ -550,7 +560,7 @@ export default function TrajetsPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-400">Chauffeur</span>
                   <span className="font-medium" style={{ color: '#1a1d29' }}>
-                    {selectedTrip.driver_name || '—'}
+                    {getDriverName(selectedTrip) || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between">
