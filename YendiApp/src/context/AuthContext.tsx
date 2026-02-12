@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   clientProfile: ClientProfile | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, fullName: string, phone?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, phone?: string, referralCode?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -97,17 +97,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, phone?: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (email: string, password: string, fullName: string, phone?: string, referralCode?: string) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
           phone: phone || null,
+          referral_code_used: referralCode || null,
         },
       },
     });
+
+    // Si inscription réussie et code de parrainage fourni, appliquer le bonus
+    if (!error && data?.user && referralCode?.trim()) {
+      // Attendre que le trigger crée le profil client
+      setTimeout(async () => {
+        try {
+          const { data: bonusResult } = await supabase.rpc('apply_referral_bonus', {
+            p_new_client_id: data.user!.id,
+            p_referral_code: referralCode.trim(),
+          });
+          console.log('Bonus parrainage:', bonusResult);
+        } catch (err) {
+          console.log('Erreur bonus parrainage:', err);
+        }
+      }, 1500);
+    }
+
     return { error };
   };
 

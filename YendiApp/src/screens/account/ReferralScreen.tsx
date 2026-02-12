@@ -11,8 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Clipboard from 'expo-clipboard';
 import { Colors, BorderRadius, FontSize, Spacing } from '../../constants/colors';
-import { mockUser } from '../../constants/mockData';
+import { useAuth } from '../../context/AuthContext';
 
 const steps = [
   {
@@ -24,15 +25,15 @@ const steps = [
   },
   {
     number: '2',
-    title: 'Il réserve son trajet',
-    description: 'Votre ami utilise le code lors de sa première réservation.',
+    title: 'Il s\'inscrit avec votre code',
+    description: 'Votre ami entre votre code lors de son inscription sur l\'app.',
     bgColor: '#C4B5FD',
     textColor: '#6D28D9',
   },
   {
     number: '3',
     title: 'Vous gagnez tous les deux',
-    description: 'Le crédit est ajouté automatiquement à vos comptes.',
+    description: '200 FCFA sont ajoutés automatiquement au solde de chacun.',
     bgColor: '#FEF3C7',
     textColor: '#92400E',
   },
@@ -40,15 +41,18 @@ const steps = [
 
 export default function ReferralScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { clientProfile } = useAuth();
+  const referralCode = clientProfile?.referral_code || '...';
 
-  const handleCopy = () => {
-    Alert.alert('Copié !', `Le code ${mockUser.referralCode} a été copié.`);
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(referralCode);
+    Alert.alert('Copié !', `Le code ${referralCode} a été copié dans le presse-papier.`);
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `🎁 Voyagez avec YENDI et gagnez 5€ sur votre première réservation !\n\nUtilisez mon code de parrainage : ${mockUser.referralCode}\n\nTéléchargez l'app YENDI maintenant et profitez de votre réduction ! 🚌`,
+        message: `🎁 Voyagez avec YENDI et gagnez 200 FCFA sur votre première réservation !\n\nUtilisez mon code de parrainage : ${referralCode}\n\nTéléchargez l'app YENDI maintenant et profitez de votre bonus ! 🚌`,
       });
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de partager le code.');
@@ -74,10 +78,15 @@ export default function ReferralScreen({ navigation }: any) {
             <Text style={{ fontSize: 48 }}>🎁</Text>
           </View>
 
-          <Text style={styles.rewardAmount}>Gagnez 10 €</Text>
+          <Text style={styles.rewardAmount}>Gagnez 200 FCFA</Text>
           <Text style={styles.rewardSub}>
-            Invitez un ami à voyager. Il gagne 5€ sur son premier{'\n'}trajet.
+            Invitez un ami à s'inscrire. Vous gagnez chacun{'\n'}200 FCFA de bonus sur votre solde !
           </Text>
+
+          <View style={styles.minBadge}>
+            <Ionicons name="information-circle" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.minBadgeText}>Utilisable à partir de 5 000 FCFA cumulés</Text>
+          </View>
         </LinearGradient>
 
         <View style={styles.content}>
@@ -86,7 +95,7 @@ export default function ReferralScreen({ navigation }: any) {
             <Text style={styles.codeLabel}>VOTRE CODE DE PARRAINAGE</Text>
             <View style={styles.codeRow}>
               <View style={styles.codeBox}>
-                <Text style={styles.codeText}>{mockUser.referralCode}</Text>
+                <Text style={styles.codeText}>{referralCode}</Text>
               </View>
               <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
                 <Text style={styles.copyBtnText}>Copier</Text>
@@ -163,6 +172,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  minBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing.lg,
+  },
+  minBadgeText: {
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
   },
   content: {
     paddingHorizontal: Spacing.xxl,

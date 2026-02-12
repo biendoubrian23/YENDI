@@ -24,6 +24,7 @@ export default function SignUpScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,7 @@ export default function SignUpScreen({ navigation }: any) {
     }
 
     setLoading(true);
-    const { error } = await signUp(email.trim(), password, fullName.trim(), phone.trim() || undefined);
+    const { error } = await signUp(email.trim(), password, fullName.trim(), phone.trim() || undefined, referralCode.trim() || undefined);
     setLoading(false);
 
     if (error) {
@@ -155,6 +156,24 @@ export default function SignUpScreen({ navigation }: any) {
                 />
               </TouchableOpacity>
             </View>
+
+            {/* Code de parrainage */}
+            <Text style={styles.label}>Code de parrainage (optionnel)</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="gift-outline" size={20} color={Colors.gray400} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: AB12CD34"
+                placeholderTextColor={Colors.gray400}
+                value={referralCode}
+                onChangeText={(text) => setReferralCode(text.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </View>
+            <Text style={styles.referralHint}>
+              Entrez le code d'un ami pour recevoir chacun 500 FCFA de bonus !
+            </Text>
 
             {/* CGU */}
             <TouchableOpacity
@@ -382,5 +401,11 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  referralHint: {
+    fontSize: FontSize.xs,
+    color: Colors.primary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

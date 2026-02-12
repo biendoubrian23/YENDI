@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, BorderRadius, FontSize, Spacing } from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -66,14 +67,26 @@ export default function MyTicketsScreen({ navigation }: any) {
       if (error) {
         console.error('Erreur chargement réservations:', error);
         // Fallback : requête directe si la fonction RPC n'existe pas encore
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('all_reservations')
-          .select('*')
-          .or(`passenger_phone.eq.${clientProfile.phone},booked_by_phone.eq.${clientProfile.phone}`)
-          .order('reserved_at', { ascending: false });
+        // Construire le filtre dynamiquement pour gérer phone null
+        const filters: string[] = [];
+        if (clientProfile.id) {
+          filters.push(`booked_by_client_id.eq.${clientProfile.id}`);
+        }
+        if (clientProfile.phone) {
+          filters.push(`passenger_phone.eq.${clientProfile.phone}`);
+          filters.push(`booked_by_phone.eq.${clientProfile.phone}`);
+        }
         
-        if (!fallbackError) {
-          setReservations(fallbackData || []);
+        if (filters.length > 0) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('all_reservations')
+            .select('*')
+            .or(filters.join(','))
+            .order('reserved_at', { ascending: false });
+          
+          if (!fallbackError) {
+            setReservations(fallbackData || []);
+          }
         }
       } else {
         setReservations(data || []);
@@ -86,9 +99,13 @@ export default function MyTicketsScreen({ navigation }: any) {
     }
   }, [clientProfile]);
 
-  useEffect(() => {
-    fetchReservations();
-  }, [fetchReservations]);
+  // Re-fetch à chaque fois que l'écran reçoit le focus (retour d'un paiement, changement d'onglet)
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchReservations();
+    }, [fetchReservations])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

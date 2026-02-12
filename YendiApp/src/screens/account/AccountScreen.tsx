@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Switch,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,18 +22,6 @@ const menuItems = [
     screen: 'PersonalInfo',
   },
   {
-    id: 'payment',
-    icon: 'card-outline',
-    label: 'Moyens de paiement',
-    screen: null,
-  },
-  {
-    id: 'prefs',
-    icon: 'settings-outline',
-    label: 'Préférences de voyage',
-    screen: null,
-  },
-  {
     id: 'referral',
     icon: 'gift-outline',
     label: 'Parrainage',
@@ -42,8 +31,15 @@ const menuItems = [
 
 export default function AccountScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { clientProfile, user, signOut } = useAuth();
+  const { clientProfile, user, signOut, refreshProfile } = useAuth();
   const [notifications, setNotifications] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshProfile();
+    setRefreshing(false);
+  }, [refreshProfile]);
 
   // Récupérer le nom avec fallback sur user_metadata
   const getDisplayName = () => {
@@ -68,7 +64,13 @@ export default function AccountScreen({ navigation }: any) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#E67E22" colors={['#E67E22']} />
+        }
+      >
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Mon Compte</Text>
@@ -91,12 +93,38 @@ export default function AccountScreen({ navigation }: any) {
               {displayName}
             </Text>
             <Text style={styles.profileEmail}>{displayEmail}</Text>
-            {clientProfile?.loyalty_points ? (
-              <View style={styles.badgeRow}>
-                <Ionicons name="star" size={12} color="#f59e0b" />
-                <Text style={styles.badgeText}>{clientProfile.loyalty_points} points</Text>
+          </View>
+        </View>
+
+        {/* Solde / Portefeuille - Séparé en 2 */}
+        <View style={styles.walletCard}>
+          <View style={styles.walletRow}>
+            {/* Bonus Parrainage */}
+            <View style={styles.walletColumn}>
+              <View style={styles.walletIconContainer}>
+                <Ionicons name="gift-outline" size={20} color="#7C3AED" />
               </View>
-            ) : null}
+              <Text style={styles.walletLabel}>Bonus Parrainage</Text>
+              <Text style={styles.walletAmount}>
+                {(clientProfile?.balance || 0).toLocaleString()} FCFA
+              </Text>
+              {(clientProfile?.balance || 0) < 5000 && (
+                <Text style={styles.walletMinNote}>Min. 5 000 pour utiliser</Text>
+              )}
+            </View>
+
+            <View style={styles.walletSeparator} />
+
+            {/* Solde Remboursement */}
+            <View style={styles.walletColumn}>
+              <View style={[styles.walletIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="wallet-outline" size={20} color="#16A34A" />
+              </View>
+              <Text style={styles.walletLabel}>Solde Remboursement</Text>
+              <Text style={[styles.walletAmount, { color: '#16A34A' }]}>
+                {(clientProfile?.refund_balance || 0).toLocaleString()} FCFA
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -129,10 +157,18 @@ export default function AccountScreen({ navigation }: any) {
             />
           </View>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('HelpSupport')}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={22} color={Colors.primary} />
               <Text style={styles.menuItemLabel}>Aide & Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LegalNotice')}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
+              <Text style={styles.menuItemLabel}>Mentions légales</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.gray400} />
           </TouchableOpacity>
@@ -226,21 +262,75 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  badgeRow: {
+  walletCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+  },
+  walletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  walletColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  walletSeparator: {
+    width: 1,
+    backgroundColor: '#E9D5FF',
+    alignSelf: 'stretch',
+    marginHorizontal: Spacing.md,
+  },
+  walletLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  walletIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDE9FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  walletLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  walletAmount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#7C3AED',
+  },
+  walletMinNote: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  walletBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 6,
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    alignSelf: 'flex-start',
   },
-  badgeText: {
+  walletBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: '#92400e',
+    color: '#7C3AED',
   },
   menuSection: {
     backgroundColor: Colors.white,

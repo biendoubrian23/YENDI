@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search,
   Download,
-  Eye,
   X,
   Phone,
   Calendar,
@@ -226,7 +225,7 @@ export default function ReservationsPage() {
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #f0f0f0' }}>
         <table className="w-full">
           <thead><tr className="border-b border-gray-100">
-            {['Ref', 'Passager', 'Trajet', 'Date', 'Place', 'Prix', 'Paiement', ''].map(h => (
+            {['Ref', 'Passager', 'Trajet', 'Date', 'Place', 'Prix', 'Paiement', 'Statut'].map(h => (
               <th key={h} className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-5 py-4">{h}</th>
             ))}
           </tr></thead>
@@ -244,7 +243,13 @@ export default function ReservationsPage() {
                 <td className="px-5 py-4 text-sm font-medium text-center" style={{ color: '#1a1d29' }}>N{r.seat_number}</td>
                 <td className="px-5 py-4 text-sm font-bold" style={{ color: '#1a1d29' }}>{fmtPrice(r.price)}</td>
                 <td className="px-5 py-4"><span className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg w-fit" style={{ color: r.payment_method === 'mobile_money' ? '#f59e0b' : '#3b82f6', background: r.payment_method === 'mobile_money' ? '#fffbeb' : '#eff6ff' }}><PayIcon method={r.payment_method} />{payLabel(r.payment_method)}</span></td>
-                <td className="px-5 py-4 text-right"><button className="text-gray-300 hover:text-gray-500"><Eye size={16} /></button></td>
+                <td className="px-5 py-4 text-right">
+                  {r.status === 'annule' ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ color: '#DC2626', background: '#FEE2E2' }}>Annulé</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ color: '#16A34A', background: '#DCFCE7' }}>Valide</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -27,6 +27,8 @@ export interface ClientProfile {
   referral_code: string | null;
   referred_by: string | null;
   loyalty_points: number;
+  balance: number;
+  refund_balance: number;
   is_verified: boolean;
   status: 'actif' | 'suspendu' | 'supprime';
   created_at: string;
