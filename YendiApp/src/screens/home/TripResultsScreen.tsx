@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, FontSize, Spacing } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
+import { getDeviceId } from '../../lib/deviceId';
 
 /* ───── Date helpers ───── */
 const MONTHS_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
@@ -53,6 +54,36 @@ const FEATURES_LIST = [
 ];
 const TRIP_TYPES = ['Direct', '1 Arrêt', '2+ Arrêts'];
 
+/* ───── Countdown Hook ───── */
+function useCountdownTimer(pricingData: Record<string, any>) {
+  const [countdowns, setCountdowns] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const update = () => {
+      const now = Date.now();
+      const newCountdowns: Record<string, string> = {};
+      for (const [tripId, data] of Object.entries(pricingData)) {
+        if (data?.countdown_end) {
+          const end = new Date(data.countdown_end).getTime();
+          const diff = end - now;
+          if (diff > 0) {
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            newCountdowns[tripId] = h > 0 ? `${h}h ${m.toString().padStart(2, '0')}min` : `${m}min ${s.toString().padStart(2, '0')}s`;
+          }
+        }
+      }
+      setCountdowns(newCountdowns);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [pricingData]);
+
+  return countdowns;
+}
+
 export default function TripResultsScreen({ route, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { from, to, date, dateISO, passengers } = route.params;
@@ -61,6 +92,10 @@ export default function TripResultsScreen({ route, navigation }: any) {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /* Dynamic pricing data */
+  const [pricingData, setPricingData] = useState<Record<string, any>>({});
+  const countdowns = useCountdownTimer(pricingData);
 
   /* Date state - initialize from passed dateISO */
   const dateList = generateDateList();
@@ -257,6 +292,11 @@ export default function TripResultsScreen({ route, navigation }: any) {
       });
 
       setTrips(formattedTrips);
+
+      // Fetch dynamic pricing for all trips
+      if (formattedTrips.length > 0) {
+        fetchDynamicPrices(formattedTrips);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
       setError('Une erreur est survenue.');
@@ -265,6 +305,41 @@ export default function TripResultsScreen({ route, navigation }: any) {
       setLoading(false);
     }
   }, [from, to, selectedDateId, dateList]);
+
+  /* ─── Fetch dynamic prices via RPC ─── */
+  const fetchDynamicPrices = useCallback(async (tripsList: any[]) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session?.session?.user?.id || null;
+      const deviceId = await getDeviceId();
+
+      const results = await Promise.all(
+        tripsList.map(async (trip) => {
+          try {
+            const { data, error: rpcError } = await supabase.rpc('calculate_dynamic_price', {
+              p_trip_id: trip.id,
+              p_user_id: userId,
+              p_device_id: deviceId,
+            });
+            if (rpcError || !data) return null;
+            return { tripId: trip.id, ...data };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const priceMap: Record<string, any> = {};
+      for (const r of results) {
+        if (r && r.yield_enabled) {
+          priceMap[r.tripId] = r;
+        }
+      }
+      setPricingData(priceMap);
+    } catch (err) {
+      console.error('Dynamic pricing fetch error:', err);
+    }
+  }, []);
 
   // Fetch on mount and when selected date changes
   useEffect(() => {
@@ -339,7 +414,10 @@ export default function TripResultsScreen({ route, navigation }: any) {
   }, [trips, filterCompanies, filterTimeSlots, filterTypes, filterDirectOnly, filterFeatures, sortBy]);
 
   const handleSelectTrip = (trip: any) => {
-    navigation.navigate('SeatSelection', { trip, from, to, date, passengers });
+    // Pass the dynamic price if yield management is active
+    const dp = pricingData[trip.id];
+    const dynamicPrice = dp ? dp.dynamic_price : trip.priceValue;
+    navigation.navigate('SeatSelection', { trip: { ...trip, dynamicPrice }, from, to, date, passengers });
   };
 
   const getFeatureIcon = (feature: string) => {
@@ -397,6 +475,7 @@ export default function TripResultsScreen({ route, navigation }: any) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.dateTabsContainer}
+        style={{ flexGrow: 0, flexShrink: 0 }}
         onLayout={() => {
           if (todayIndex > 0) {
             dateScrollRef.current?.scrollTo({ x: todayIndex * 72, animated: false });
@@ -485,6 +564,11 @@ export default function TripResultsScreen({ route, navigation }: any) {
             style={styles.tripListContainer}
             renderItem={({ item }) => {
               const isPast = new Date(item.departureDatetime) < new Date();
+              const dp = pricingData[item.id];
+              const dynamicPrice = dp ? dp.dynamic_price : item.priceValue;
+              const displayPrice = `${dynamicPrice.toLocaleString('fr-FR')} FCFA`;
+              const hasCountdown = !!countdowns[item.id];
+              const nextPrice = dp?.next_price;
               return (
               <View style={[styles.tripCard, isPast && { opacity: 0.45 }]}>
               {/* Row 1: Company badge left + Price right */}
@@ -492,7 +576,12 @@ export default function TripResultsScreen({ route, navigation }: any) {
                 <View style={[styles.companyBadge, { borderColor: isPast ? Colors.gray400 : item.companyColor, borderWidth: 1.5 }]}>
                   <Text style={[styles.companyText, { color: isPast ? Colors.gray400 : item.companyColor }]}>{item.company}</Text>
                 </View>
-                <Text style={[styles.priceText, isPast && { color: Colors.gray400 }]}>{item.price}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[styles.priceText, isPast && { color: Colors.gray400 }]}>{displayPrice}</Text>
+                  {dp && dynamicPrice > item.priceValue && (
+                    <Text style={styles.basePriceStriked}>{item.price}</Text>
+                  )}
+                </View>
               </View>
 
               {/* Row 2: Departure left ──── Arrival right (under price) */}
@@ -546,6 +635,21 @@ export default function TripResultsScreen({ route, navigation }: any) {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Countdown FOMO */}
+              {!isPast && hasCountdown && (
+                <View style={styles.countdownBanner}>
+                  <Ionicons name="time-outline" size={13} color="#6C63FF" />
+                  <Text style={styles.countdownText}>
+                    Ce prix expire dans {countdowns[item.id]}
+                  </Text>
+                  {nextPrice && nextPrice > dynamicPrice && (
+                    <Text style={styles.countdownNextPrice}>
+                      Après : {nextPrice.toLocaleString('fr-FR')} FCFA
+                    </Text>
+                  )}
+                </View>
+              )}
 
               {/* Seats warning or past/full indicator */}
               {isPast ? (
@@ -1203,5 +1307,34 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: '700',
     color: Colors.white,
+  },
+
+  /* ── Dynamic Pricing ── */
+  basePriceStriked: {
+    fontSize: 11,
+    color: Colors.gray400,
+    textDecorationLine: 'line-through',
+    marginTop: 1,
+  },
+  countdownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0EEFF',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  countdownText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6C63FF',
+    flex: 1,
+  },
+  countdownNextPrice: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9B8FFF',
   },
 });

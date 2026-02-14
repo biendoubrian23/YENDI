@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
@@ -245,7 +245,7 @@ export default function ReservationsPage() {
                 <td className="px-5 py-4"><span className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg w-fit" style={{ color: r.payment_method === 'mobile_money' ? '#f59e0b' : '#3b82f6', background: r.payment_method === 'mobile_money' ? '#fffbeb' : '#eff6ff' }}><PayIcon method={r.payment_method} />{payLabel(r.payment_method)}</span></td>
                 <td className="px-5 py-4 text-right">
                   {r.status === 'annule' ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ color: '#DC2626', background: '#FEE2E2' }}>Annulé</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ color: '#DC2626', background: '#FEE2E2' }}>AnnulÃ©</span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ color: '#16A34A', background: '#DCFCE7' }}>Valide</span>
                   )}
@@ -255,7 +255,7 @@ export default function ReservationsPage() {
           </tbody>
         </table>
         <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400">{total} reservation{total > 1 ? 's' : ''} • Page {currentPage}/{totalPages || 1}</p>
+          <p className="text-xs text-gray-400">{total} reservation{total > 1 ? 's' : ''} â€¢ Page {currentPage}/{totalPages || 1}</p>
           <div className="flex items-center gap-1">
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition disabled:opacity-30"><ChevronLeft size={14} /></button>
             {(() => {
@@ -271,7 +271,7 @@ export default function ReservationsPage() {
               }
               return pages.map((p, idx) =>
                 p === '...' ? (
-                  <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">…</span>
+                  <span key={`dots-${idx}`} className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">â€¦</span>
                 ) : (
                   <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-medium transition ${currentPage === p ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>{p}</button>
                 )
@@ -296,12 +296,12 @@ function DetailModal({ r, onClose }: { r: Reservation; onClose: () => void }) {
   const handleDownloadPDF = async () => {
     setDownloadingPDF(true)
     try {
-      // Import dynamique pour éviter les problèmes SSR
+      // Import dynamique pour Ã©viter les problÃ¨mes SSR
       const { default: jsPDF } = await import('jspdf')
       
       const doc = new jsPDF()
       
-      // En-tête
+      // En-tÃªte
       doc.setFontSize(20)
       doc.setTextColor(124, 58, 237) // Purple
       doc.text('YENDI', 105, 20, { align: 'center' })
@@ -310,21 +310,21 @@ function DetailModal({ r, onClose }: { r: Reservation; onClose: () => void }) {
       doc.setTextColor(156, 163, 175) // Gray
       doc.text(r.agency_name, 105, 27, { align: 'center' })
       
-      // Ligne de séparation
+      // Ligne de sÃ©paration
       doc.setDrawColor(243, 244, 246)
       doc.line(20, 32, 190, 32)
       
-      // Titre du reçu
+      // Titre du reÃ§u
       doc.setFontSize(9)
       doc.setTextColor(156, 163, 175)
       doc.text('RECU DE RESERVATION', 20, 40)
       
       doc.setFontSize(14)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(`Ref: #${r.ticket_ref}`, 20, 48)
       
-      // Informations du trajet (encadré)
+      // Informations du trajet (encadrÃ©)
       doc.setFillColor(249, 250, 251)
       doc.roundedRect(20, 52, 170, 18, 3, 3, 'F')
       
@@ -334,52 +334,52 @@ function DetailModal({ r, onClose }: { r: Reservation; onClose: () => void }) {
       
       doc.setFontSize(9)
       doc.setTextColor(107, 114, 128)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text(`${fmtDate(r.departure_datetime)} - ${fmtTime(r.departure_datetime)} - ${fmtTime(r.arrival_datetime)}`, 25, 66)
       
-      // Détails de la réservation
+      // DÃ©tails de la rÃ©servation
       doc.setFontSize(10)
       doc.setTextColor(156, 163, 175)
       let y = 80
       
       doc.text('Passager', 20, y)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(r.passenger_name || r.booked_by_name, 190, y, { align: 'right' })
       
       y += 8
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(156, 163, 175)
       doc.text('Telephone', 20, y)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(r.passenger_phone || r.booked_by_phone, 190, y, { align: 'right' })
       
       y += 8
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(156, 163, 175)
       doc.text('Place', 20, y)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(`N${r.seat_number}`, 190, y, { align: 'right' })
       
       y += 8
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(156, 163, 175)
       doc.text('Immatriculation', 20, y)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(r.bus_plate, 190, y, { align: 'right' })
       
       y += 8
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.setTextColor(156, 163, 175)
       doc.text('Paiement', 20, y)
       doc.setTextColor(26, 29, 41)
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(payLabel(r.payment_method), 190, y, { align: 'right' })
       
-      // Ligne de séparation
+      // Ligne de sÃ©paration
       y += 6
       doc.setDrawColor(243, 244, 246)
       doc.line(20, y, 190, y)
@@ -388,15 +388,15 @@ function DetailModal({ r, onClose }: { r: Reservation; onClose: () => void }) {
       y += 10
       doc.setFontSize(11)
       doc.setTextColor(156, 163, 175)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       doc.text('Total paye', 20, y)
       
       doc.setFontSize(16)
       doc.setTextColor(34, 197, 94) // Green
-      doc.setFont(undefined, 'bold')
+      doc.setFont('helvetica', 'bold')
       doc.text(fmtPrice(r.price), 190, y, { align: 'right' })
       
-      // Ligne de séparation
+      // Ligne de sÃ©paration
       y += 6
       doc.setDrawColor(243, 244, 246)
       doc.line(20, y, 190, y)
@@ -405,15 +405,15 @@ function DetailModal({ r, onClose }: { r: Reservation; onClose: () => void }) {
       y += 10
       doc.setFontSize(8)
       doc.setTextColor(156, 163, 175)
-      doc.setFont(undefined, 'normal')
+      doc.setFont('helvetica', 'normal')
       const message = `Merci de voyager avec Yendi & ${r.agency_name} !\nPresentez ce recu ou votre QR code au moment de l'embarquement.`
       doc.text(message, 105, y, { align: 'center' })
       
-      // Télécharger le PDF
+      // TÃ©lÃ©charger le PDF
       doc.save(`Recu_${r.ticket_ref}.pdf`)
     } catch (error) {
-      console.error('Erreur lors du téléchargement du PDF:', error)
-      alert('Erreur lors du téléchargement du PDF')
+      console.error('Erreur lors du tÃ©lÃ©chargement du PDF:', error)
+      alert('Erreur lors du tÃ©lÃ©chargement du PDF')
     } finally {
       setDownloadingPDF(false)
     }
@@ -531,12 +531,12 @@ function NewReservationModal({ agencyId, onClose, onSuccess }: { agencyId: strin
   const layout = selectedTrip?.bus_seat_layout || { left: 2, right: 2, back_row: 5, rows: 10 }
   const availNums = selectedTrip?.available_seat_numbers || []
   
-  // Calculer le nombre de sièges pour les rangées normales et la rangée arrière
+  // Calculer le nombre de siÃ¨ges pour les rangÃ©es normales et la rangÃ©e arriÃ¨re
   const normalRowsSeats = layout.rows * (layout.left + layout.right)
   const backRowCount = layout.back_row || 0
   const totalSeats = selectedTrip ? selectedTrip.bus_seats : normalRowsSeats + backRowCount
   
-  // Générer les rangées normales
+  // GÃ©nÃ©rer les rangÃ©es normales
   const generateSeatRows = () => {
     const rows = []
     let seatNum = 1
@@ -554,7 +554,7 @@ function NewReservationModal({ agencyId, onClose, onSuccess }: { agencyId: strin
     return rows
   }
   
-  // Générer la rangée arrière
+  // GÃ©nÃ©rer la rangÃ©e arriÃ¨re
   const generateBackRow = () => {
     const backSeats = []
     let seatNum = normalRowsSeats + 1
@@ -615,7 +615,7 @@ function NewReservationModal({ agencyId, onClose, onSuccess }: { agencyId: strin
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-center text-xs text-gray-400 mb-3">Avant du bus</p>
                 <div className="space-y-2">
-                  {/* Rangées normales */}
+                  {/* RangÃ©es normales */}
                   {seatRows.map((row, rowIdx) => (
                     <div key={rowIdx} className="flex items-center justify-center gap-3">
                       <div className="flex gap-1">
@@ -628,11 +628,11 @@ function NewReservationModal({ agencyId, onClose, onSuccess }: { agencyId: strin
                     </div>
                   ))}
                   
-                  {/* Rangée arrière */}
+                  {/* RangÃ©e arriÃ¨re */}
                   {backRowSeats.length > 0 && (
                     <>
                       <div className="border-t border-gray-300 my-2 pt-2">
-                        <p className="text-center text-xs text-gray-400 mb-2">Arrière</p>
+                        <p className="text-center text-xs text-gray-400 mb-2">ArriÃ¨re</p>
                       </div>
                       <div className="flex items-center justify-center gap-1">
                         {backRowSeats.map(n => <SeatBtn key={n} num={n} reserved={reservedSeats} available={availNums} selected={selectedSeat} onSelect={setSelectedSeat} />)}

@@ -108,7 +108,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
     });
   };
 
-  const totalPrice = trip.priceValue * passengers;
+  const totalPrice = (trip.dynamicPrice || trip.priceValue) * passengers;
   const additionalCount = additionalSeats.length;
 
   return (
@@ -196,7 +196,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
                 <TextInput
                   style={[
                     styles.input,
-                    errors[`${index}-name`] && styles.inputError
+                    errors[`${index}-name`] ? styles.inputError : null
                   ]}
                   placeholder="Ex: Jean Dupont"
                   placeholderTextColor={Colors.gray400}
@@ -214,7 +214,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
                 <TextInput
                   style={[
                     styles.input,
-                    errors[`${index}-phone`] && styles.inputError
+                    errors[`${index}-phone`] ? styles.inputError : null
                   ]}
                   placeholder="Ex: +237 699 123 456"
                   placeholderTextColor={Colors.gray400}

@@ -11,20 +11,23 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Zap,
 } from 'lucide-react'
 import { supabase, type Profile } from '@/lib/supabase'
 
 const navItems = [
   { href: '/dashboard', label: "Vue d'ensemble", icon: LayoutDashboard },
-  { href: '/dashboard/agences', label: 'Agences', icon: Building2, badge: 12 },
+  { href: '/dashboard/agences', label: 'Agences', icon: Building2, badge: 'dynamic' as const },
   { href: '/dashboard/admins', label: 'Administrateurs', icon: Users },
   { href: '/dashboard/finances', label: 'Finances', icon: BarChart3 },
+  { href: '/dashboard/yield-management', label: 'Yield Management', icon: Zap },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [agencyCount, setAgencyCount] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -38,7 +41,16 @@ export default function Sidebar() {
         if (data) setProfile(data)
       }
     }
+    const fetchAgencyCount = async () => {
+      // Compter uniquement les agences avec au moins un admin
+      const { data } = await supabase
+        .from('agencies')
+        .select('id, agency_admins(profile_id)')
+      const withAdmin = (data || []).filter((a: any) => a.agency_admins && a.agency_admins.length > 0)
+      setAgencyCount(withAdmin.length)
+    }
     fetchProfile()
+    fetchAgencyCount()
   }, [])
 
   const handleLogout = async () => {
@@ -92,7 +104,7 @@ export default function Sidebar() {
               >
                 <item.icon size={18} />
                 <span>{item.label}</span>
-                {item.badge && (
+                {item.badge === 'dynamic' && agencyCount !== null && (
                   <span
                     className={`ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${
                       isActive
@@ -101,7 +113,7 @@ export default function Sidebar() {
                     }`}
                     style={!isActive ? { background: '#f26522' } : {}}
                   >
-                    {item.badge}
+                    {agencyCount}
                   </span>
                 )}
               </Link>
@@ -122,7 +134,9 @@ export default function Sidebar() {
           <p className="text-sm font-semibold text-gray-800 truncate">
             {profile?.full_name || 'Chargement...'}
           </p>
-          <p className="text-xs text-gray-400">Super Admin</p>
+          <p className="text-xs text-gray-400">
+            {profile?.role === 'superadmin' ? 'Super Admin' : profile?.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
+          </p>
         </div>
         <button
           onClick={handleLogout}

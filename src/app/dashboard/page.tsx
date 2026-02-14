@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Bell, Plus, MoreVertical, Search, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { supabase, type Agency } from '@/lib/supabase'
-import { formatFCFA } from '@/lib/mock-data'
+import { formatFCFA } from '@/lib/format-utils'
 
 interface AgencyWithAdmin extends Agency {
   adminName?: string
@@ -38,13 +38,27 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function DashboardPage() {
   const [agencies, setAgencies] = useState<AgencyWithAdmin[]>([])
-  const [stats, setStats] = useState({ activeAgencies: 0, totalAdmins: 0, monthlyVolume: 0 })
+  const [stats, setStats] = useState({ activeAgencies: 0, totalAdmins: 0, monthlyVolume: 0, newThisWeek: 0, totalAgencies: 0 })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [userName, setUserName] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch current user profile
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', session.user.id)
+            .single()
+          if (profile?.full_name) {
+            setUserName(profile.full_name.split(' ')[0])
+          }
+        }
+
         // Fetch agencies with their primary admin
         const { data: agenciesData } = await supabase
           .from('agencies')
@@ -52,38 +66,63 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(6)
 
-        const mapped: AgencyWithAdmin[] = (agenciesData || []).map((a: Record<string, unknown>) => {
-          const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string; email: string } | null }>) || []
-          const primary = admins.find((ad) => ad.is_primary)
-          return {
-            ...a,
-            adminName: primary?.profiles?.full_name || 'En attente',
-            adminEmail: primary?.profiles?.email || '-',
-          } as AgencyWithAdmin
-        })
+        const mapped: AgencyWithAdmin[] = (agenciesData || [])
+          .map((a: Record<string, unknown>) => {
+            const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string; email: string } | null }>) || []
+            const primary = admins.find((ad) => ad.is_primary)
+            return {
+              ...a,
+              adminName: primary?.profiles?.full_name || 'En attente',
+              adminEmail: primary?.profiles?.email || '-',
+              adminsCount: admins.length,
+            } as AgencyWithAdmin & { adminsCount: number }
+          })
+          .filter((a) => a.adminsCount > 0) // Ne garder que les agences avec admin
         setAgencies(mapped)
 
-        // Stats
-        const { count: activeCount } = await supabase
+        // Stats - compter uniquement les agences avec admin
+        const { data: allAgenciesData } = await supabase
           .from('agencies')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'operationnel')
+          .select('id, status, created_at, agency_admins(profile_id)')
+        
+        const agenciesWithAdmin = (allAgenciesData || []).filter(
+          (a: any) => a.agency_admins && a.agency_admins.length > 0
+        )
+
+        const activeCount = agenciesWithAdmin.filter((a: any) => a.status === 'operationnel').length
 
         const { count: adminCount } = await supabase
           .from('agency_admins')
           .select('*', { count: 'exact', head: true })
 
-        const { data: finData } = await supabase
-          .from('financial_records')
-          .select('ca_brut')
-          .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+        // Total agencies (with admin only)
+        const totalAgencies = agenciesWithAdmin.length
 
-        const monthlyVol = (finData || []).reduce((sum: number, r: { ca_brut: number }) => sum + r.ca_brut, 0)
+        // Monthly volume — real data from seat_reservations
+        let monthlyVol = 0
+        try {
+          const finResponse = await fetch('/api/stats/real-finances')
+          if (finResponse.ok) {
+            const realData = await finResponse.json()
+            monthlyVol = realData.totals?.revenue || 0
+          }
+        } catch (e) {
+          console.error('Erreur chargement volume réel:', e)
+        }
+
+        // New agencies this week (with admin only)
+        const oneWeekAgo = new Date()
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+        const newCount = agenciesWithAdmin.filter(
+          (a: any) => new Date(a.created_at) >= oneWeekAgo
+        ).length
 
         setStats({
-          activeAgencies: activeCount || 0,
+          activeAgencies: activeCount,
           totalAdmins: adminCount || 0,
           monthlyVolume: monthlyVol,
+          newThisWeek: newCount,
+          totalAgencies: totalAgencies,
         })
       } catch (err) {
         console.error('Erreur chargement dashboard:', err)
@@ -102,7 +141,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">Bienvenue, Superadmin</h1>
+          <h1 className="page-title">Bienvenue{userName ? `, ${userName}` : ''}</h1>
           <p className="page-subtitle">
             Voici ce qu&apos;il se passe sur le réseau YENDI aujourd&apos;hui.
           </p>
@@ -126,7 +165,7 @@ export default function DashboardPage() {
               <Building2Icon />
             </div>
           </div>
-          <span className="stat-badge stat-badge-green">Réseau</span>
+          <span className="stat-badge stat-badge-green">{stats.newThisWeek > 0 ? `+${stats.newThisWeek} cette semaine` : `${stats.totalAgencies} au total`}</span>
           <p className="stat-label">Agences Actives</p>
           <p className="stat-value">{loading ? '...' : stats.activeAgencies}</p>
         </div>

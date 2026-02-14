@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { supabase, type Agency } from '@/lib/supabase'
-import { formatFCFA } from '@/lib/mock-data'
+import { formatFCFA } from '@/lib/format-utils'
 
 type TabType = 'Toutes' | 'Actives' | 'En Attente' | 'Suspendues'
 
@@ -188,8 +188,11 @@ export default function AgencesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [agencies, setAgencies] = useState<AgencyRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ total: 0, active: 0, blocked: 0, trips: 0 })
+  const [stats, setStats] = useState({ total: 0, active: 0, blocked: 0, trips: 0, newThisWeek: 0 })
   const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'revenue'>('recent')
+  const ITEMS_PER_PAGE = 8
 
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -199,29 +202,36 @@ export default function AgencesPage() {
           .select('*, agency_admins(profile_id, is_primary, profiles(full_name, email))')
           .order('created_at', { ascending: false })
 
-        const { data: finData } = await supabase
-          .from('financial_records')
-          .select('agency_id, ca_brut, commission_amount')
-
+        // Fetch real revenue from seat_reservations via API
         const revenueMap: Record<string, number> = {}
-        ;(finData || []).forEach((r: { agency_id: string; ca_brut: number }) => {
-          revenueMap[r.agency_id] = (revenueMap[r.agency_id] || 0) + r.ca_brut
-        })
+        try {
+          const finResponse = await fetch('/api/stats/real-finances')
+          if (finResponse.ok) {
+            const realData = await finResponse.json()
+            ;(realData.agencies || []).forEach((a: { agency_id: string; revenue: number }) => {
+              revenueMap[a.agency_id] = a.revenue
+            })
+          }
+        } catch (e) {
+          console.error('Erreur chargement revenus réels:', e)
+        }
 
-        const mapped: AgencyRow[] = (agenciesData || []).map((a: Record<string, unknown>) => {
-          const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string; email: string } | null }>) || []
-          const primary = admins.find((ad) => ad.is_primary)
-          const rev = revenueMap[a.id as string] || 0
-          return {
-            ...a,
-            admin: primary?.profiles?.full_name || 'En attente',
-            adminEmail: primary?.profiles?.email || '',
-            initials: (primary?.profiles?.full_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-            revenue: rev,
-            adminsCount: admins.length,
-            debt: (a.status === 'suspendu' && rev < 0) ? rev : undefined,
-          } as AgencyRow
-        })
+        const mapped: AgencyRow[] = (agenciesData || [])
+          .map((a: Record<string, unknown>) => {
+            const admins = (a.agency_admins as Array<{ is_primary: boolean; profiles: { full_name: string; email: string } | null }>) || []
+            const primary = admins.find((ad) => ad.is_primary)
+            const rev = revenueMap[a.id as string] || 0
+            return {
+              ...a,
+              admin: primary?.profiles?.full_name || 'En attente',
+              adminEmail: primary?.profiles?.email || '',
+              initials: (primary?.profiles?.full_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+              revenue: rev,
+              adminsCount: admins.length,
+              debt: (a.status === 'suspendu' && rev < 0) ? rev : undefined,
+            } as AgencyRow
+          })
+          .filter((a) => a.adminsCount > 0) // Ne garder que les agences avec admin
 
         setAgencies(mapped)
 
@@ -229,11 +239,19 @@ export default function AgencesPage() {
         const active = mapped.filter((a) => a.status === 'operationnel').length
         const blocked = mapped.filter((a) => a.status === 'en_attente' || a.status === 'inactive').length
 
-        const { data: tripsData } = await supabase
-          .from('trips')
+        // Count trips from scheduled_trips
+        const { count: tripsCount } = await supabase
+          .from('scheduled_trips')
           .select('*', { count: 'exact', head: true })
 
-        setStats({ total, active, blocked, trips: (tripsData as unknown as number) || 0 })
+        // New agencies this week
+        const oneWeekAgo = new Date()
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+        const newThisWeek = mapped.filter(
+          (a) => new Date(a.created_at) >= oneWeekAgo
+        ).length
+
+        setStats({ total, active, blocked, trips: tripsCount || 0, newThisWeek })
       } catch (err) {
         console.error('Erreur chargement agences:', err)
       }
@@ -244,13 +262,39 @@ export default function AgencesPage() {
 
   const tabs: TabType[] = ['Toutes', 'Actives', 'En Attente', 'Suspendues']
 
-  const filteredAgencies = agencies.filter((a) => {
-    if (activeTab === 'Toutes') return true
-    if (activeTab === 'Actives') return a.status === 'operationnel'
-    if (activeTab === 'Suspendues') return a.status === 'suspendu'
-    if (activeTab === 'En Attente') return a.status === 'inactive' || a.status === 'en_attente'
-    return true
-  })
+  // Reset page on filter/search change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, searchQuery, sortBy])
+
+  const filteredAgencies = agencies
+    .filter((a) => {
+      // Tab filter
+      if (activeTab === 'Actives' && a.status !== 'operationnel') return false
+      if (activeTab === 'Suspendues' && a.status !== 'suspendu') return false
+      if (activeTab === 'En Attente' && a.status !== 'inactive' && a.status !== 'en_attente') return false
+      // Search filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        return (
+          a.name.toLowerCase().includes(q) ||
+          a.city.toLowerCase().includes(q) ||
+          (a.admin || '').toLowerCase().includes(q)
+        )
+      }
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      if (sortBy === 'revenue') return b.revenue - a.revenue
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+  const totalPages = Math.max(1, Math.ceil(filteredAgencies.length / ITEMS_PER_PAGE))
+  const paginatedAgencies = filteredAgencies.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   return (
     <div>
@@ -268,7 +312,7 @@ export default function AgencesPage() {
         <div className="flex items-center gap-3">
           <div className="search-input">
             <Search size={16} className="text-gray-400" />
-            <input type="text" placeholder="Rechercher une agence..." className="w-48" />
+            <input type="text" placeholder="Rechercher une agence..." className="w-48" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <button className="w-9 h-9 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50">
             <SlidersHorizontal size={16} />
@@ -292,7 +336,7 @@ export default function AgencesPage() {
               </svg>
             </div>
           </div>
-          <span className="stat-badge stat-badge-green">+3 cette semaine</span>
+          <span className="stat-badge stat-badge-green">{stats.newThisWeek > 0 ? `+${stats.newThisWeek} cette semaine` : 'Stable'}</span>
           <p className="stat-value">{loading ? '...' : stats.total}</p>
           <p className="stat-label">Total des Agences</p>
         </div>
@@ -355,10 +399,14 @@ export default function AgencesPage() {
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span>Trier par:</span>
-          <select className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white font-medium">
-            <option>Date d&apos;inscription (Récent)</option>
-            <option>Nom (A-Z)</option>
-            <option>Revenus</option>
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white font-medium"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'recent' | 'name' | 'revenue')}
+          >
+            <option value="recent">Date d&apos;inscription (Récent)</option>
+            <option value="name">Nom (A-Z)</option>
+            <option value="revenue">Revenus</option>
           </select>
         </div>
       </div>
@@ -380,7 +428,7 @@ export default function AgencesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredAgencies.map((agency) => (
+              {paginatedAgencies.map((agency) => (
                 <tr
                   key={agency.id}
                   className="cursor-pointer hover:bg-gray-50 transition"
@@ -468,23 +516,30 @@ export default function AgencesPage() {
       </div>
 
       {/* Pagination */}
-      <div className="flex justify-center">
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-sm text-gray-400">
+          Affichage {filteredAgencies.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAgencies.length)} sur {filteredAgencies.length} agences
+        </p>
         <div className="pagination">
-          <button>
+          <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1} className="disabled:opacity-30">
             <ChevronLeft size={14} />
           </button>
-          {[1, 2, 3].map((page) => (
-            <button
-              key={page}
-              className={currentPage === page ? 'active' : ''}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </button>
-          ))}
-          <span className="text-gray-400 text-sm mx-1">...</span>
-          <button onClick={() => setCurrentPage(8)}>8</button>
-          <button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+            .map((p, idx, arr) => (
+              <span key={p}>
+                {idx > 0 && arr[idx - 1] !== p - 1 && (
+                  <span className="text-gray-400 text-sm mx-1">...</span>
+                )}
+                <button
+                  className={currentPage === p ? 'active' : ''}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  {p}
+                </button>
+              </span>
+            ))}
+          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="disabled:opacity-30">
             <ChevronRight size={14} />
           </button>
         </div>

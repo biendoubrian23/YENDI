@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
       for (const trip of activeTrips) {
         const route = trip.routes as unknown as { departure_city: string; arrival_city: string } | null
         const drivers = trip.drivers as unknown as { first_name: string; last_name: string } | null
-        busTripMap.set(trip.bus_id, {
-          departure_datetime: trip.departure_datetime,
-          arrival_datetime: trip.arrival_datetime,
+        busTripMap.set(trip.bus_id as string, {
+          departure_datetime: trip.departure_datetime as string,
+          arrival_datetime: trip.arrival_datetime as string,
           drivers: drivers || null,
           departure_city: route?.departure_city || '',
           arrival_city: route?.arrival_city || '',

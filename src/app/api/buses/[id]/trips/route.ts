@@ -62,7 +62,7 @@ export async function GET(
         .eq('bus_id', busId)
         .eq('agency_id', adminLink.agency_id)
         .order('departure_datetime', { ascending: false })
-      trips = fallback.data
+      trips = fallback.data as typeof trips
       error = fallback.error
     }
 

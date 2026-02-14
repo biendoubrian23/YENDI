@@ -282,7 +282,21 @@ export default function DashboardAgencePage() {
   const yAxisLabels = Array.from({ length: yAxisSteps + 1 }, (_, i) => stepValue * i)
   const yAxisMax = yAxisLabels[yAxisLabels.length - 1] || 1 // Valeur max de l'axe Y pour le calcul des hauteurs
 
-  const statsCards = [
+  const statsCards: Array<{
+    label: string
+    value: string
+    change?: string | null
+    changeType?: string | null
+    icon?: React.ComponentType<{ size?: number; style?: React.CSSProperties }> | null
+    iconColor?: string
+    accentColor?: string
+    hasBorder: boolean
+    badge?: string | null
+    badgeColor?: string | null
+    sub?: string | null
+    progress?: number | null
+    progressColor?: string | null
+  }> = [
     {
       label: filter === 'day' ? 'Revenu Journalier' : 'Revenu Total',
       value: `${totalRevenue.toLocaleString()} FCFA`,
@@ -381,7 +395,7 @@ export default function DashboardAgencePage() {
               {card.badge && (
                 <span
                   className="text-[10px] font-bold px-2 py-1 rounded-md text-white"
-                  style={{ background: card.badgeColor }}
+                  style={{ background: card.badgeColor || undefined }}
                 >
                   {card.badge}
                 </span>

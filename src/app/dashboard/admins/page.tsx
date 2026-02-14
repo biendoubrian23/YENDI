@@ -104,8 +104,15 @@ function AssignAdminModal({
 
   useEffect(() => {
     const fetchAgencies = async () => {
-      const { data } = await supabase.from('agencies').select('id, name, city, color').order('name')
-      setAgencies(data || [])
+      const { data } = await supabase
+        .from('agencies')
+        .select('id, name, city, color, agency_admins(profile_id)')
+        .order('name')
+      // Filtrer pour ne garder que les agences avec admin
+      const filtered = (data || [])
+        .filter((a: any) => a.agency_admins && a.agency_admins.length > 0)
+        .map((a: any) => ({ id: a.id, name: a.name, city: a.city, color: a.color }))
+      setAgencies(filtered)
     }
     fetchAgencies()
   }, [])
@@ -364,8 +371,15 @@ function EditAdminModal({
 
   useEffect(() => {
     const fetchAgencies = async () => {
-      const { data } = await supabase.from('agencies').select('id, name, city, color').order('name')
-      setAgencies(data || [])
+      const { data } = await supabase
+        .from('agencies')
+        .select('id, name, city, color, agency_admins(profile_id)')
+        .order('name')
+      // Filtrer pour ne garder que les agences avec admin
+      const filtered = (data || [])
+        .filter((a: any) => a.agency_admins && a.agency_admins.length > 0)
+        .map((a: any) => ({ id: a.id, name: a.name, city: a.city, color: a.color }))
+      setAgencies(filtered)
     }
     fetchAgencies()
   }, [])

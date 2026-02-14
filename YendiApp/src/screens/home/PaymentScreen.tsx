@@ -52,7 +52,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const finalPassengerInfos = buildPassengerInfos();
-  const totalPrice = trip.priceValue * passengerCount;
+  const totalPrice = (trip.dynamicPrice || trip.priceValue) * passengerCount;
 
   const handlePay = async () => {
     setIsLoading(true);
@@ -66,6 +66,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       }));
 
       // Appeler la fonction RPC pour créer la réservation groupée
+      const unitPrice = trip.dynamicPrice || trip.priceValue;
       const { data, error } = await supabase.rpc('create_group_reservation', {
         p_scheduled_trip_id: trip.scheduledTripId,
         p_passengers: passengersData,
@@ -74,6 +75,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         p_booked_by_phone: clientProfile?.phone || finalPassengerInfos[0]?.phone || '',
         p_booked_by_email: clientProfile?.email || user?.email || null,
         p_payment_method: selectedMethod === 'momo' ? 'mobile_money' : 'card',
+        p_unit_price: unitPrice !== trip.priceValue ? unitPrice : null,
       });
 
       if (error) {
@@ -182,7 +184,7 @@ export default function PaymentScreen({ route, navigation }: any) {
           <View style={styles.recapDivider} />
           <View style={styles.recapInfoRow}>
             <Text style={styles.recapInfoLabel}>Prix unitaire</Text>
-            <Text style={styles.recapInfoValue}>{trip.price}</Text>
+            <Text style={styles.recapInfoValue}>{(trip.dynamicPrice || trip.priceValue).toLocaleString('fr-FR')} FCFA</Text>
           </View>
           {passengerCount > 1 && (
             <View style={styles.recapInfoRow}>

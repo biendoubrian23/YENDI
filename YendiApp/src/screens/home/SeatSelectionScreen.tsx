@@ -312,7 +312,7 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         </View>
         <View style={styles.bottomPriceRow}>
           <Text style={styles.bottomPrice}>
-            {(trip.priceValue * requiredSeats).toLocaleString('fr-FR')} FCFA
+            {((trip.dynamicPrice || trip.priceValue) * requiredSeats).toLocaleString('fr-FR')} FCFA
           </Text>
           {selectedSeats.length > 0 && (
             <Text style={styles.bottomSeat}>
